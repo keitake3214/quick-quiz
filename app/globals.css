@@ -24,3 +24,73 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* app/globals.css の一番下に追加 */
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%); /* 画面の右外側からスタート */
+    opacity: 0;                  /* 最初は透明 */
+  }
+  to {
+    transform: translateX(0);    /* 本来の位置へ */
+    opacity: 1;                  /* くっきり表示 */
+  }
+}
+
+.animate-slide-in-right {
+  /* 0.5秒かけて、ぬるっと（ease-out）動き、終了時の状態をキープ（forwards） */
+  animation: slideInRight 0.5s ease-out forwards;
+}
+
+/* app/globals.css の一番下に追記 */
+
+@keyframes toastSlideIn {
+  0% {
+    transform: translateX(120%); /* 画面の右外側からスタート */
+    opacity: 0;
+  }
+  10% {
+    transform: translateX(0);    /* スッと定位置にスライドイン */
+    opacity: 1;
+  }
+  90% {
+    transform: translateX(0);    /* 表示をキープ */
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(120%); /* 右外側へスッと消えていく */
+    opacity: 0;
+  }
+}
+
+.animate-toast {
+  /* 2.5秒かけて、スッと入って、しばらく止まって、スッと消える */
+  animation: toastSlideIn 2.5s ease-in-out forwards;
+}
+
+/* app/globals.css の一番下に追記 */
+
+@keyframes toastDangerSlideIn {
+  0% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  10% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  90% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+
+.animate-toast-danger {
+  /* 2.5秒かけてスッと出て、警告色（赤）でしばらく留まり、スッと右に消える */
+  animation: toastDangerSlideIn 2.5s ease-in-out forwards;
+}
