@@ -5,7 +5,6 @@ import { ref, update } from "firebase/database";
 import { db } from "../lib/firebase";
 
 export default function Home() {
-  // バックエンド（フック）から必要なデータと関数をすべて呼び出す
   const {
     userName, setUserName, isAdmin, isJoined, appState, questions, users, currentAnswers,
     myQuestion, setMyQuestion, timeLeft, hasAnswered, showSaveModal, showResetModal, showDuplicateModal,
@@ -14,19 +13,20 @@ export default function Home() {
     join, saveQuestion, setMode, resetGameToRegistration, nextQuestion, showResults, submitAnswer
   } = useQuizApp();
 
-  // --- 参加者一覧コンポーネント ---
+  // --- 参加者一覧コンポーネント（スクロール対応） ---
   const MemberListUI = () => {
     const userEntries = Object.entries(users || {});
     return (
-      <div className="mt-8 p-4 bg-gray-50 rounded-xl border border-gray-200 text-left">
+      <div className="p-4 bg-white rounded-xl shadow text-left">
         <h4 className="font-bold mb-3 text-gray-700 flex justify-between items-center">
-          <span>現在参加中のメンバー</span>
+          <span>現在参加中のメンバー（ロビー）</span>
           <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">{userEntries.length} 人</span>
         </h4>
         {userEntries.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-2">待機中のメンバーはいません</p>
         ) : (
-          <div className="flex flex-wrap gap-2">
+          // 【変更】max-h-32 (約128px) に制限し、あふれたら縦スクロールさせる
+          <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-1">
             {userEntries.map(([name, data]) => {
               const isOnline = data.isOnline !== false;
               return (
@@ -37,7 +37,7 @@ export default function Home() {
                       ? "bg-blue-100 text-blue-800 border-blue-300 font-bold" 
                       : !isOnline
                         ? "bg-gray-200 text-gray-400 border-gray-200 opacity-50" 
-                        : "bg-white text-gray-700 border-gray-300 shadow-sm"
+                        : "bg-gray-50 text-gray-700 border-gray-300 shadow-sm"
                   }`}
                 >
                   {isOnline ? "👤" : "💤"} {name} {name === userName ? "(あなた)" : ""}
@@ -109,10 +109,16 @@ export default function Home() {
         </div>
       )}
 
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto space-y-6">
+        
+        {/* 【変更】一般ユーザーの場合は、画面の最上部にロビー（参加者一覧）を表示 */}
+        {!isAdmin && appState.mode === "registration" && (
+          <MemberListUI />
+        )}
+
         {/* 管理者パネル */}
         {isAdmin && (
-          <div className="bg-white p-4 rounded-lg shadow mb-8 border-2 border-blue-500">
+          <div className="bg-white p-4 rounded-lg shadow border-2 border-blue-500">
             <h2 className="text-xl font-bold mb-4 text-blue-600">管理者コントロール ({askedCount}/{totalQuestions}問消化)</h2>
             <div className="flex flex-wrap gap-2 mb-4">
               <button onClick={resetGameToRegistration} className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded text-sm font-bold border border-red-300">
@@ -130,7 +136,7 @@ export default function Home() {
                 <button onClick={showResults} className="bg-purple-500 text-white px-4 py-2 rounded font-bold">結果発表演出へ</button>
               )}
             </div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-4">
               <label>制限時間(秒):</label>
               <input
                 type="number"
@@ -139,6 +145,7 @@ export default function Home() {
                 className="border p-1 w-20"
               />
             </div>
+            {/* 管理者の場合はコントロールパネル内にメンバー一覧を表示 */}
             <MemberListUI />
           </div>
         )}
@@ -192,7 +199,6 @@ export default function Home() {
             <button onClick={saveQuestion} className="w-full bg-blue-500 text-white py-3 rounded-xl font-bold shadow hover:bg-blue-600 transition-colors text-lg">
               問題を保存する
             </button>
-            {!isAdmin && <MemberListUI />}
           </div>
         )}
 
