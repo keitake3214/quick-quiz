@@ -65,11 +65,35 @@ export function useQuizApp() {
   const finalInitRef = useRef(false);
   const autoLoginProcessed = useRef(false);
 
+  // --- BGM用のRefと制御ロジック ---
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      audioRef.current = new Audio("/bgm.mp3");
+      audioRef.current.loop = true; // ループ再生させる
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!audioRef.current) return;
+
+    if (appState.mode === "execution" && timeLeft > 0) {
+      audioRef.current.play().catch((err) => {
+        console.warn("ブラウザの自動再生ブロックによりBGMが再生されませんでした:", err);
+      });
+    } else {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  }, [appState.mode, timeLeft]);
+
+  // --- 進行状況の計算 ---
   const totalQuestions = Object.keys(questions || {}).length;
   const askedCount = appState.askedQuestions ? Object.keys(appState.askedQuestions).length : 0;
   const isLastQuestion = totalQuestions > 0 && askedCount >= totalQuestions;
 
-  // Firebase接続と自動ログイン
+  // --- Firebaseデータの購読 & 自動ログインチェック ---
   useEffect(() => {
     signInAnonymously(auth).catch(console.error);
 
@@ -105,14 +129,14 @@ export function useQuizApp() {
     return () => { unsubState(); unsubQuestions(); unsubUsers(); unsubAnswers(); };
   }, []);
 
-  // 登録済み問題の復元
+  // --- 登録済み問題の復元 ---
   useEffect(() => {
     if (isJoined && userName && questions && questions[userName]) {
       setMyQuestion(questions[userName]);
     }
   }, [questions, isJoined, userName]);
 
-  // タイマー処理
+  // --- タイマー処理 ---
   useEffect(() => {
     if (appState.mode === "execution" && appState.currentQuestionId) {
       const interval = setInterval(() => {
@@ -124,13 +148,13 @@ export function useQuizApp() {
     }
   }, [appState.mode, appState.currentQuestionId, appState.questionStartTime, appState.timeLimit]);
 
-  // 新問リセット
+  // --- 新しい問題が出た時のリセット処理 ---
   useEffect(() => {
     setHasAnswered(false);
     setLocalStartTime(Date.now());
   }, [appState.currentQuestionId]);
 
-  // 各問結果のアニメーション
+  // --- 各問の結果発表アニメーションの処理 ---
   useEffect(() => {
     if (appState.mode === "result" && appState.currentQuestionId) {
       const currentQ = questions[appState.currentQuestionId];
@@ -159,13 +183,17 @@ export function useQuizApp() {
     }
   }, [appState.mode, appState.currentQuestionId, currentAnswers, questions]);
 
-  // 最終結果のアニメーション
+  // --- 最終結果のアニメーション処理 ---
   useEffect(() => {
     if (appState.mode === "finalResult" && !finalInitRef.current) {
       finalInitRef.current = true;
       const finalArr = Object.entries(users || {}).map(([name, data]) => ({ name, score: data.score, rank: 0 }));
       
-      finalArr.sort((a, b) => b.score !== a.score ? b.score - a.score : a.name.localeCompare(b.name));
+      finalArr.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.name.localeCompare(b.name);
+      });
+
       let currentRank = 1, prevScore = -1;
       finalArr.forEach((item, idx) => {
         if (item.score !== prevScore) { currentRank = idx + 1; prevScore = item.score; }
@@ -185,7 +213,7 @@ export function useQuizApp() {
     }
   }, [appState.mode, users]);
 
-  // 正解表示タイマー
+  // --- 正解表示タイマー ---
   useEffect(() => {
     if (appState.mode !== "result") return setShowCorrectAnswer(false);
     if (sortedResults.length === 0 || revealIndex === sortedResults.length) {
@@ -194,7 +222,7 @@ export function useQuizApp() {
     }
   }, [appState.mode, revealIndex, sortedResults.length]);
 
-  // 初期化時のキックアウト
+  // --- 初期化時の自動キックアウト処理 ---
   useEffect(() => {
     if (isJoined && userName && autoLoginProcessed.current && (!users || !users[userName])) {
       setIsJoined(false);
@@ -269,8 +297,13 @@ export function useQuizApp() {
         .filter(([, answerData]) => answerData.choice === currentQ.correctIndex)
         .sort(([, a], [, b]) => (a.timeTaken || 0) - (b.timeTaken || 0));
 
+      // 【修正】正解者にはベース1pt。そこに1位:3pt, 2位:2pt, 3位:1ptをボーナス加算
       correctAnswers.forEach(([userId], index) => {
-        const points = index === 0 ? 4 : index === 1 ? 3 : index === 2 ? 2 : 1;
+        let points = 1; // ベース得点
+        if (index === 0) points += 3;
+        else if (index === 1) points += 2;
+        else if (index === 2) points += 1;
+
         updates[`users/${userId}/score`] = (users[userId]?.score || 0) + points;
         updates[`currentAnswers/${userId}/pointsEarned`] = points;
       });

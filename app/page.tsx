@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect } from "react";
 import { useQuizApp } from "../hooks/useQuizApp";
 import { ref, update } from "firebase/database";
 import { db } from "../lib/firebase";
@@ -13,7 +14,18 @@ export default function Home() {
     join, saveQuestion, setMode, resetGameToRegistration, nextQuestion, showResults, submitAnswer
   } = useQuizApp();
 
-  // --- 参加者一覧コンポーネント（スクロール対応） ---
+  // --- 問題文入力欄の自動リサイズ処理 ---
+  // ※画面のDOM（HTML要素）を直接操作するため、この処理だけはUI側（page.tsx）に配置します
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [myQuestion.text, appState.mode]);
+
+  // --- 参加者一覧コンポーネント ---
   const MemberListUI = () => {
     const userEntries = Object.entries(users || {});
     return (
@@ -25,7 +37,6 @@ export default function Home() {
         {userEntries.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-2">待機中のメンバーはいません</p>
         ) : (
-          // 【変更】max-h-32 (約128px) に制限し、あふれたら縦スクロールさせる
           <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-1">
             {userEntries.map(([name, data]) => {
               const isOnline = data.isOnline !== false;
@@ -54,6 +65,7 @@ export default function Home() {
   if (!isJoined) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4 relative overflow-hidden">
+        
         {showResetModal && (
           <div className="fixed top-6 right-6 z-50 bg-red-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-red-400 animate-toast-danger">
             <span className="text-2xl">⚠️</span>
@@ -63,6 +75,7 @@ export default function Home() {
             </div>
           </div>
         )}
+
         {showDuplicateModal && (
           <div className="fixed top-6 right-6 z-50 bg-red-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-red-400 animate-toast-danger">
             <span className="text-2xl">🚫</span>
@@ -99,6 +112,8 @@ export default function Home() {
   // --- UI: メイン画面（問題作成・クイズ実行） ---
   return (
     <div className="min-h-screen bg-gray-100 p-4 text-black relative overflow-hidden">
+      
+      {/* 保存完了モーダル */}
       {showSaveModal && (
         <div className="fixed top-6 right-6 z-50 bg-green-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-green-400 animate-toast">
           <span className="text-2xl">✨</span>
@@ -111,7 +126,7 @@ export default function Home() {
 
       <div className="max-w-2xl mx-auto space-y-6">
         
-        {/* 【変更】一般ユーザーの場合は、画面の最上部にロビー（参加者一覧）を表示 */}
+        {/* 一般ユーザーのロビー */}
         {!isAdmin && appState.mode === "registration" && (
           <MemberListUI />
         )}
@@ -124,14 +139,17 @@ export default function Home() {
               <button onClick={resetGameToRegistration} className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded text-sm font-bold border border-red-300">
                 初期化
               </button>
+              
               {appState.mode !== "result" || !isLastQuestion ? (
                 <button onClick={nextQuestion} className="bg-green-500 text-white px-4 py-2 rounded font-bold">出題</button>
               ) : null}
+
               {appState.mode === "result" && isLastQuestion && (
                 <button onClick={() => setMode("finalResult")} className="bg-amber-500 text-white px-6 py-2 rounded-xl font-extrabold shadow animate-pulse">
                   🏆最終結果🏆
                 </button>
               )}
+
               {appState.mode === "execution" && (
                 <button onClick={showResults} className="bg-purple-500 text-white px-4 py-2 rounded font-bold">結果発表演出へ</button>
               )}
@@ -145,7 +163,6 @@ export default function Home() {
                 className="border p-1 w-20"
               />
             </div>
-            {/* 管理者の場合はコントロールパネル内にメンバー一覧を表示 */}
             <MemberListUI />
           </div>
         )}
@@ -155,13 +172,16 @@ export default function Home() {
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="text-2xl font-bold mb-2">問題作成画面</h2>
             <p className="mb-6 text-gray-500 text-sm">各自クイズを1問作成してください。何度でも編集・上書き保存できます。</p>
-            <input
-              type="text"
+            
+            <textarea
+              ref={textareaRef}
+              rows={2}
               placeholder="問題文（例: 世界で一番高い山は？）"
               value={myQuestion.text}
               onChange={(e) => setMyQuestion({ ...myQuestion, text: e.target.value })}
-              className="w-full border-2 p-3 rounded-xl mb-6 text-black focus:border-blue-500 focus:outline-none text-lg font-medium"
+              className="w-full border-2 p-3 rounded-xl mb-6 text-black focus:border-blue-500 focus:outline-none text-lg font-medium resize-none overflow-hidden leading-snug min-h-[5rem]"
             />
+
             <div className="space-y-4 mb-6">
               {myQuestion.choices.map((choice, idx) => {
                 const isCorrect = myQuestion.correctIndex === idx;
@@ -172,7 +192,14 @@ export default function Home() {
                         正解はこれ！👇
                       </div>
                     )}
-                    <div className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all duration-200 ${isCorrect ? "border-green-500 bg-green-50/60 shadow-sm" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+
+                    <div 
+                      className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all duration-200 ${
+                        isCorrect 
+                          ? "border-green-500 bg-green-50/60 shadow-sm" 
+                          : "border-gray-200 bg-white hover:border-gray-300"
+                      }`}
+                    >
                       <input
                         type="radio"
                         name="correctAnswer"
@@ -196,6 +223,7 @@ export default function Home() {
                 );
               })}
             </div>
+
             <button onClick={saveQuestion} className="w-full bg-blue-500 text-white py-3 rounded-xl font-bold shadow hover:bg-blue-600 transition-colors text-lg">
               問題を保存する
             </button>
@@ -205,14 +233,19 @@ export default function Home() {
         {/* 実行モード */}
         {appState.mode === "execution" && appState.currentQuestionId && (
           <div className="bg-white p-6 rounded-lg shadow text-center">
+            
             {timeLeft > 0 && (
               <div className="flex flex-col items-center justify-center mb-6">
-                <div className={`w-28 h-28 rounded-full flex items-center justify-center shadow-lg border-4 transition-colors duration-300 ${timeLeft <= 5 ? "bg-red-600 border-red-800" : "bg-red-500 border-red-600"}`}>
+                <div className={`w-28 h-28 rounded-full flex items-center justify-center shadow-lg border-4 transition-colors duration-300 ${
+                  timeLeft <= 5 ? "bg-red-600 border-red-800" : "bg-red-500 border-red-600"
+                }`}>
                   <span className="text-6xl font-black text-white drop-shadow-md">{timeLeft}</span>
                 </div>
               </div>
             )}
+
             <p className="text-sm text-gray-500 mb-2">出題者: {appState.currentQuestionId}</p>
+            
             {timeLeft === 0 ? (
               <div className="text-2xl font-bold py-10">タイムアップ！結果発表をお待ちください...</div>
             ) : appState.currentQuestionId === userName ? (
@@ -226,7 +259,13 @@ export default function Home() {
                       key={idx}
                       onClick={() => submitAnswer(idx)}
                       disabled={hasAnswered}
-                      className={`py-4 rounded-lg text-xl font-bold transition-all ${hasAnswered ? currentAnswers[userName]?.choice === idx ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-400" : "bg-gray-100 hover:bg-gray-200 border-2 border-gray-300"}`}
+                      className={`py-4 rounded-lg text-xl font-bold transition-all ${
+                        hasAnswered
+                          ? currentAnswers[userName]?.choice === idx
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-200 text-gray-400"
+                          : "bg-gray-100 hover:bg-gray-200 border-2 border-gray-300"
+                      }`}
                     >
                       {choice}
                     </button>
@@ -244,27 +283,43 @@ export default function Home() {
             {showCorrectAnswer && sortedResults.length > 0 && (
               <div className="mb-8 p-4 bg-yellow-100 border-4 border-yellow-400 rounded-lg animate-pulse">
                 <h2 className="text-xl font-bold text-gray-700 mb-2">正解は...</h2>
-                <p className="text-4xl font-extrabold text-red-600">「{questions[appState.currentQuestionId].choices[questions[appState.currentQuestionId].correctIndex]}」</p>
+                <p className="text-4xl font-extrabold text-red-600">
+                  「{questions[appState.currentQuestionId].choices[questions[appState.currentQuestionId].correctIndex]}」
+                </p>
                 <p className="text-xl font-bold text-gray-700 mt-2">です！</p>
               </div>
             )}
+
             <h3 className="text-xl font-bold mb-6 text-gray-500">今回の結果</h3>
+
             {sortedResults.length === 0 ? (
               showCorrectAnswer ? (
                 <div className="mb-8 p-4 bg-yellow-100 border-4 border-yellow-400 rounded-lg">
                   <p className="text-xl font-bold text-gray-700 mb-2">誰も回答しませんでした！正解は...</p>
-                  <p className="text-4xl font-extrabold text-red-600">「{questions[appState.currentQuestionId].choices[questions[appState.currentQuestionId].correctIndex]}」</p>
+                  <p className="text-4xl font-extrabold text-red-600">
+                    「{questions[appState.currentQuestionId].choices[questions[appState.currentQuestionId].correctIndex]}」
+                  </p>
                 </div>
-              ) : <p>回答者がいませんでした。</p>
+              ) : (
+                <p>回答者がいませんでした。</p>
+              )
             ) : (
               <div className="flex flex-col gap-2 transition-all duration-500">
                 {sortedResults.slice(0, revealIndex).reverse().map((result) => (
-                  <div key={result.name} className={`flex flex-col p-3 md:p-4 rounded-xl border-2 shadow-sm animate-slide-in-right ${result.isCorrect ? "bg-red-50 border-red-200 text-red-700 font-bold" : "bg-gray-100 border-gray-300 text-gray-500"}`}>
+                  <div 
+                    key={result.name}
+                    className={`flex flex-col p-3 md:p-4 rounded-xl border-2 shadow-sm animate-slide-in-right ${
+                      result.isCorrect 
+                        ? "bg-red-50 border-red-200 text-red-700 font-bold" 
+                        : "bg-gray-100 border-gray-300 text-gray-500"
+                    }`}
+                  >
                     <div className="flex justify-between items-center text-lg md:text-xl w-full">
                       <span className="w-1/3 text-left truncate">{result.name}</span>
                       <span className="w-1/3 text-center">{result.timeTaken.toFixed(3)} 秒</span>
                       <span className="w-1/3 text-right">{result.isCorrect ? "⭕️ 正解" : "❌ 不正解"}</span>
                     </div>
+                    
                     {result.name === userName && (
                       <div className={`mt-2 pt-2 border-t text-right text-sm font-bold w-full ${result.isCorrect ? 'border-red-200 text-red-800' : 'border-gray-300 text-gray-600'}`}>
                         今回の獲得: +{result.pointsEarned || 0} pt ／ 現在の合計: {users[userName]?.score || 0} pt
@@ -282,14 +337,34 @@ export default function Home() {
           <div className="bg-white p-6 rounded-lg shadow text-center overflow-hidden">
             <h2 className="text-4xl font-extrabold mb-8 text-amber-500 animate-bounce">🏆 最終結果発表 🏆</h2>
             <p className="text-md text-gray-500 mb-6">全問終了！これまでの合計成績ランキングです！</p>
-            {sortedFinalResults.length === 0 ? <p>データがありません。</p> : (
+            
+            {sortedFinalResults.length === 0 ? (
+              <p>データがありません。</p>
+            ) : (
               <div className="flex flex-col gap-2 transition-all duration-500">
                 {sortedFinalResults.slice(0, finalRevealIndex).reverse().map((item) => {
-                  const medal = item.rank === 1 ? "🥇 " : item.rank === 2 ? "🥈 " : item.rank === 3 ? "🥉 " : "";
+                  let medal = "";
+                  if (item.rank === 1) medal = "🥇 ";
+                  else if (item.rank === 2) medal = "🥈 ";
+                  else if (item.rank === 3) medal = "🥉 ";
+
+                  const isTop = item.rank === 1;
+
                   return (
-                    <div key={item.name} className={`flex justify-between items-center text-xl p-4 rounded-lg border-2 shadow-sm animate-slide-in-right ${item.rank === 1 ? "bg-amber-50 border-amber-400 font-extrabold text-amber-900" : "bg-gray-50 border-gray-200"}`}>
-                      <span className="font-bold text-left truncate">{medal}{item.rank}位: {item.name}</span>
-                      <span className="text-blue-600 font-extrabold text-right">{item.score} pt</span>
+                    <div 
+                      key={item.name} 
+                      className={`flex justify-between items-center text-xl p-4 rounded-lg border-2 shadow-sm animate-slide-in-right ${
+                        isTop 
+                          ? "bg-amber-50 border-amber-400 font-extrabold text-amber-900" 
+                          : "bg-gray-50 border-gray-200"
+                      }`}
+                    >
+                      <span className="font-bold text-left truncate">
+                        {medal}{item.rank}位: {item.name}
+                      </span>
+                      <span className="text-blue-600 font-extrabold text-right">
+                        {item.score} pt
+                      </span>
                     </div>
                   );
                 })}
