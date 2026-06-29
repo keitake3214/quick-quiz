@@ -353,7 +353,7 @@ export function useQuizApp() {
   // --- アクション関数 ---
   const loginWithLine = () => {
     const clientId = process.env.NEXT_PUBLIC_LINE_CHANNEL_ID;
-    const redirectUri = encodeURIComponent(process.env.NEXT_PUBLIC_LINE_REDIRECT_URI || "");
+    const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/line-callback`);
     const state = Math.random().toString(36).slice(2);
     const url = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=profile`;
     window.location.href = url;

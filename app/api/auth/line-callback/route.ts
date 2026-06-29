@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
   const clientId = process.env.LINE_CHANNEL_ID!;
   const clientSecret = process.env.LINE_CHANNEL_SECRET!;
-  const redirectUri = process.env.LINE_REDIRECT_URI!;
+  const redirectUri = `${new URL(request.url).origin}/api/auth/line-callback`;
 
   // アクセストークン取得
   const tokenRes = await fetch("https://api.line.me/oauth2/v2.1/token", {
