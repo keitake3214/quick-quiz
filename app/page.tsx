@@ -7,17 +7,16 @@ import { db } from "../lib/firebase";
 
 export default function Home() {
   const {
-    userName, setUserName, isAdmin, isJoined, appState, questions, users, currentAnswers,
+    lineProfile, userName, isAdmin, isJoined, appState, questions, users, currentAnswers,
     myQuestion, setMyQuestion, timeLeft, hasAnswered, showSaveModal, showResetModal, showDuplicateModal,
+    countdownValue, showReadyScreen,
     revealIndex, sortedResults, showCorrectAnswer, finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
-    join, saveQuestion, setMode, resetGameToRegistration, nextQuestion, showResults, submitAnswer
+    loginWithLine, join, toggleReady, saveQuestion, setMode, resetGameToRegistration,
+    nextQuestion, showResults, submitAnswer
   } = useQuizApp();
 
-  // --- 問題文入力欄の自動リサイズ処理 ---
-  // ※画面のDOM（HTML要素）を直接操作するため、この処理だけはUI側（page.tsx）に配置します
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -25,59 +24,81 @@ export default function Home() {
     }
   }, [myQuestion.text, appState.mode]);
 
-  // --- 参加者一覧コンポーネント ---
-  const MemberListUI = () => {
+  // --- ロビーコンポーネント ---
+  const LobbyUI = () => {
     const userEntries = Object.entries(users || {});
+    const myData = users[userName];
+    const isReady = myData?.isReady || false;
+
     return (
       <div className="p-4 bg-white rounded-xl shadow text-left">
-        <h4 className="font-bold mb-3 text-gray-700 flex justify-between items-center">
-          <span>現在参加中のメンバー（ロビー）</span>
+        <h4 className="font-bold mb-4 text-gray-700 flex justify-between items-center">
+          <span>ロビー</span>
           <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">{userEntries.length} 人</span>
         </h4>
+
         {userEntries.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-2">待機中のメンバーはいません</p>
         ) : (
-          <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-1">
+          <div className="flex flex-wrap gap-6 justify-center py-2">
             {userEntries.map(([name, data]) => {
               const isOnline = data.isOnline !== false;
+              const ready = data.isReady === true;
               return (
-                <span 
-                  key={name} 
-                  className={`px-3 py-1 rounded-full text-sm font-medium border transition-all duration-300 ${
-                    name === userName 
-                      ? "bg-blue-100 text-blue-800 border-blue-300 font-bold" 
-                      : !isOnline
-                        ? "bg-gray-200 text-gray-400 border-gray-200 opacity-50" 
-                        : "bg-gray-50 text-gray-700 border-gray-300 shadow-sm"
-                  }`}
-                >
-                  {isOnline ? "👤" : "💤"} {name} {name === userName ? "(あなた)" : ""}
-                </span>
+                <div key={name} className="flex flex-col items-center gap-1 w-16">
+                  <div className={`relative w-14 h-14 rounded-full ${ready ? "ring-4 ring-green-400" : ""}`}>
+                    {data.pictureUrl ? (
+                      <img
+                        src={data.pictureUrl}
+                        alt={name}
+                        className={`w-14 h-14 rounded-full object-cover transition-opacity duration-300 ${isOnline ? "opacity-100" : "opacity-30"}`}
+                      />
+                    ) : (
+                      <div className={`w-14 h-14 rounded-full bg-gray-300 flex items-center justify-center text-2xl transition-opacity duration-300 ${isOnline ? "opacity-100" : "opacity-30"}`}>
+                        👤
+                      </div>
+                    )}
+                    {!isOnline && (
+                      <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400 font-bold">
+                        💤
+                      </div>
+                    )}
+                  </div>
+                  <span className={`text-xs font-medium text-center break-all leading-tight ${!isOnline ? "text-gray-400" : "text-gray-700"}`}>
+                    {name === userName ? `${name}(あなた)` : name}
+                  </span>
+                  {ready && (
+                    <span className="text-xs font-bold text-green-600 bg-green-50 px-1 py-0.5 rounded">準備完了</span>
+                  )}
+                </div>
               );
             })}
           </div>
+        )}
+
+        {/* 準備完了ボタン（登録モード時のみ） */}
+        {appState.mode === "registration" && (
+          <button
+            onClick={toggleReady}
+            className={`mt-6 w-full py-3 rounded-xl font-bold text-lg transition-all ${
+              isReady
+                ? "bg-green-500 text-white shadow-lg"
+                : "bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200"
+            }`}
+          >
+            {isReady ? "✅ 準備完了！" : "準備できたら押してね"}
+          </button>
         )}
       </div>
     );
   };
 
-  // --- UI: 名前登録画面 ---
-  if (!isJoined) {
+  // --- UI: LINEログイン画面 ---
+  if (!lineProfile) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4 relative overflow-hidden">
-        
-        {showResetModal && (
-          <div className="fixed top-6 right-6 z-50 bg-red-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-red-400 animate-toast-danger">
-            <span className="text-2xl">⚠️</span>
-            <div>
-              <p className="font-extrabold text-lg">初期化しました</p>
-              <p className="text-xs text-red-100">全データがクリアされ、登録モードへ戻りました</p>
-            </div>
-          </div>
-        )}
-
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
         {showDuplicateModal && (
-          <div className="fixed top-6 right-6 z-50 bg-red-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-red-400 animate-toast-danger">
+          <div className="fixed top-6 right-6 z-50 bg-red-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-red-400">
             <span className="text-2xl">🚫</span>
             <div>
               <p className="font-extrabold text-lg">登録できません</p>
@@ -85,22 +106,56 @@ export default function Home() {
             </div>
           </div>
         )}
-
         <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md flex flex-col items-center">
           <h1 className="text-3xl font-extrabold mb-2 text-black tracking-tight">早押しクイズ</h1>
-          <p className="text-gray-500 mb-8 font-medium">参加する名前を入力してください</p>
-          
-          <input
-            type="text"
-            placeholder="（例）たろう"
-            value={userName}
-            onChange={(e) => setUserName(e.target.value)}
-            className="w-full border-2 border-gray-300 p-4 rounded-xl text-xl mb-6 text-black focus:border-blue-500 focus:outline-none font-bold text-center"
+          <p className="text-gray-500 mb-8 font-medium">LINEアカウントでログインしてください</p>
+          <button
+            onClick={loginWithLine}
+            className="w-full bg-[#06C755] text-white px-8 py-4 rounded-xl text-xl font-bold shadow-md hover:bg-[#05b34d] transition-colors flex items-center justify-center gap-3"
+          >
+            <svg viewBox="0 0 24 24" className="w-7 h-7 fill-white">
+              <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314" />
+            </svg>
+            LINEでログイン
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- UI: 参加ボタン画面（LINEログイン済みだがまだ未参加） ---
+  if (!isJoined) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
+        {showResetModal && (
+          <div className="fixed top-6 right-6 z-50 bg-red-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-red-400">
+            <span className="text-2xl">⚠️</span>
+            <div>
+              <p className="font-extrabold text-lg">初期化しました</p>
+              <p className="text-xs text-red-100">全データがクリアされました</p>
+            </div>
+          </div>
+        )}
+        {showDuplicateModal && (
+          <div className="fixed top-6 right-6 z-50 bg-red-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-red-400">
+            <span className="text-2xl">🚫</span>
+            <div>
+              <p className="font-extrabold text-lg">登録できません</p>
+              <p className="text-xs text-red-100">その名前は既に使われています</p>
+            </div>
+          </div>
+        )}
+        <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md flex flex-col items-center">
+          <img
+            src={lineProfile.pictureUrl || ""}
+            alt={lineProfile.displayName}
+            className="w-24 h-24 rounded-full object-cover mb-4 shadow"
           />
-          <button 
-            onClick={join} 
-            disabled={!userName} 
-            className="w-full bg-blue-500 text-white px-8 py-4 rounded-xl text-xl font-bold shadow-md hover:bg-blue-600 disabled:bg-gray-300 transition-colors"
+          <h1 className="text-2xl font-extrabold mb-1 text-black">{lineProfile.displayName}</h1>
+          <p className="text-gray-500 mb-8 text-sm">このアカウントで参加しますか？</p>
+          <button
+            onClick={join}
+            className="w-full bg-blue-500 text-white px-8 py-4 rounded-xl text-xl font-bold shadow-md hover:bg-blue-600 transition-colors"
           >
             参加する
           </button>
@@ -109,11 +164,27 @@ export default function Home() {
     );
   }
 
-  // --- UI: メイン画面（問題作成・クイズ実行） ---
+  // --- UI: カウントダウン画面 ---
+  if (appState.mode === "countdown") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white">
+        {showReadyScreen && countdownValue >= 3 ? (
+          <div className="text-center animate-bounce">
+            <p className="text-6xl font-extrabold tracking-widest text-yellow-400">Ready?</p>
+          </div>
+        ) : (
+          <div className="text-center">
+            <p className="text-9xl font-black text-yellow-400 drop-shadow-lg">{countdownValue}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // --- UI: メイン画面 ---
   return (
     <div className="min-h-screen bg-gray-100 p-4 text-black relative overflow-hidden">
-      
-      {/* 保存完了モーダル */}
+
       {showSaveModal && (
         <div className="fixed top-6 right-6 z-50 bg-green-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-green-400 animate-toast">
           <span className="text-2xl">✨</span>
@@ -125,24 +196,15 @@ export default function Home() {
       )}
 
       <div className="max-w-2xl mx-auto space-y-6">
-        
-        {/* 一般ユーザーのロビー */}
-        {!isAdmin && appState.mode === "registration" && (
-          <MemberListUI />
-        )}
 
-        {/* 管理者パネル */}
+        {/* 管理者パネル（出題ボタン・問題作成なし） */}
         {isAdmin && (
           <div className="bg-white p-4 rounded-lg shadow border-2 border-blue-500">
-            <h2 className="text-xl font-bold mb-4 text-blue-600">管理者コントロール ({askedCount}/{totalQuestions}問消化)</h2>
+            <h2 className="text-xl font-bold mb-4 text-blue-600">管理者 ({askedCount}/{totalQuestions}問消化)</h2>
             <div className="flex flex-wrap gap-2 mb-4">
               <button onClick={resetGameToRegistration} className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded text-sm font-bold border border-red-300">
-                初期化
+                部屋を解散する
               </button>
-              
-              {appState.mode !== "result" || !isLastQuestion ? (
-                <button onClick={nextQuestion} className="bg-green-500 text-white px-4 py-2 rounded font-bold">出題</button>
-              ) : null}
 
               {appState.mode === "result" && isLastQuestion && (
                 <button onClick={() => setMode("finalResult")} className="bg-amber-500 text-white px-6 py-2 rounded-xl font-extrabold shadow animate-pulse">
@@ -153,8 +215,12 @@ export default function Home() {
               {appState.mode === "execution" && (
                 <button onClick={showResults} className="bg-purple-500 text-white px-4 py-2 rounded font-bold">結果発表演出へ</button>
               )}
+
+              {appState.mode === "result" && !isLastQuestion && (
+                <button onClick={nextQuestion} className="bg-green-500 text-white px-4 py-2 rounded font-bold">次の問題へ</button>
+              )}
             </div>
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2">
               <label>制限時間(秒):</label>
               <input
                 type="number"
@@ -163,16 +229,18 @@ export default function Home() {
                 className="border p-1 w-20"
               />
             </div>
-            <MemberListUI />
           </div>
         )}
 
-        {/* 登録モード */}
+        {/* ロビー（登録モード） */}
+        {appState.mode === "registration" && <LobbyUI />}
+
+        {/* 問題作成エリア（登録モード） */}
         {appState.mode === "registration" && (
           <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-2xl font-bold mb-2">問題作成画面</h2>
-            <p className="mb-6 text-gray-500 text-sm">各自クイズを1問作成してください。何度でも編集・上書き保存できます。</p>
-            
+            <h2 className="text-2xl font-bold mb-2">問題を作成する</h2>
+            <p className="mb-6 text-gray-500 text-sm">クイズを1問作成してください。何度でも編集・上書き保存できます。</p>
+
             <textarea
               ref={textareaRef}
               rows={2}
@@ -192,14 +260,7 @@ export default function Home() {
                         正解はこれ！👇
                       </div>
                     )}
-
-                    <div 
-                      className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all duration-200 ${
-                        isCorrect 
-                          ? "border-green-500 bg-green-50/60 shadow-sm" 
-                          : "border-gray-200 bg-white hover:border-gray-300"
-                      }`}
-                    >
+                    <div className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all duration-200 ${isCorrect ? "border-green-500 bg-green-50/60 shadow-sm" : "border-gray-200 bg-white hover:border-gray-300"}`}>
                       <input
                         type="radio"
                         name="correctAnswer"
@@ -233,23 +294,32 @@ export default function Home() {
         {/* 実行モード */}
         {appState.mode === "execution" && appState.currentQuestionId && (
           <div className="bg-white p-6 rounded-lg shadow text-center">
-            
             {timeLeft > 0 && (
               <div className="flex flex-col items-center justify-center mb-6">
-                <div className={`w-28 h-28 rounded-full flex items-center justify-center shadow-lg border-4 transition-colors duration-300 ${
-                  timeLeft <= 5 ? "bg-red-600 border-red-800" : "bg-red-500 border-red-600"
-                }`}>
+                <div className={`w-28 h-28 rounded-full flex items-center justify-center shadow-lg border-4 transition-colors duration-300 ${timeLeft <= 5 ? "bg-red-600 border-red-800" : "bg-red-500 border-red-600"}`}>
                   <span className="text-6xl font-black text-white drop-shadow-md">{timeLeft}</span>
                 </div>
               </div>
             )}
 
-            <p className="text-sm text-gray-500 mb-2">出題者: {appState.currentQuestionId}</p>
-            
+            {/* 出題者情報 */}
+            <div className="flex items-center justify-center gap-2 mb-4">
+              {users[appState.currentQuestionId]?.pictureUrl ? (
+                <img
+                  src={users[appState.currentQuestionId].pictureUrl}
+                  alt={appState.currentQuestionId}
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+              ) : (
+                <span className="text-xl">👤</span>
+              )}
+              <p className="text-sm text-gray-500">出題者: <span className="font-bold text-gray-700">{appState.currentQuestionId}</span></p>
+            </div>
+
             {timeLeft === 0 ? (
               <div className="text-2xl font-bold py-10">タイムアップ！結果発表をお待ちください...</div>
             ) : appState.currentQuestionId === userName ? (
-              <div className="text-xl py-10">あなたの問題が出題中です！<br/>他の人の回答を待ちましょう。</div>
+              <div className="text-xl py-10">あなたの問題が出題中です！<br />他の人の回答を待ちましょう。</div>
             ) : (
               <>
                 <h2 className="text-2xl font-bold mb-8">{questions[appState.currentQuestionId]?.text}</h2>
@@ -277,9 +347,9 @@ export default function Home() {
           </div>
         )}
 
-        {/* 各問の結果発表モード */}
+        {/* 各問の結果発表 */}
         {appState.mode === "result" && appState.currentQuestionId && (
-          <div className="bg-white p-6 rounded-lg shadow text-center overflow-hidden"> 
+          <div className="bg-white p-6 rounded-lg shadow text-center overflow-hidden">
             {showCorrectAnswer && sortedResults.length > 0 && (
               <div className="mb-8 p-4 bg-yellow-100 border-4 border-yellow-400 rounded-lg animate-pulse">
                 <h2 className="text-xl font-bold text-gray-700 mb-2">正解は...</h2>
@@ -304,24 +374,28 @@ export default function Home() {
                 <p>回答者がいませんでした。</p>
               )
             ) : (
-              <div className="flex flex-col gap-2 transition-all duration-500">
+              <div className="flex flex-col gap-2">
                 {sortedResults.slice(0, revealIndex).reverse().map((result) => (
-                  <div 
+                  <div
                     key={result.name}
                     className={`flex flex-col p-3 md:p-4 rounded-xl border-2 shadow-sm animate-slide-in-right ${
-                      result.isCorrect 
-                        ? "bg-red-50 border-red-200 text-red-700 font-bold" 
-                        : "bg-gray-100 border-gray-300 text-gray-500"
+                      result.isCorrect ? "bg-red-50 border-red-200 text-red-700 font-bold" : "bg-gray-100 border-gray-300 text-gray-500"
                     }`}
                   >
                     <div className="flex justify-between items-center text-lg md:text-xl w-full">
-                      <span className="w-1/3 text-left truncate">{result.name}</span>
+                      <div className="flex items-center gap-2 w-1/3">
+                        {users[result.name]?.pictureUrl ? (
+                          <img src={users[result.name].pictureUrl} alt={result.name} className="w-7 h-7 rounded-full object-cover" />
+                        ) : (
+                          <span>👤</span>
+                        )}
+                        <span className="truncate">{result.name}</span>
+                      </div>
                       <span className="w-1/3 text-center">{result.timeTaken.toFixed(3)} 秒</span>
                       <span className="w-1/3 text-right">{result.isCorrect ? "⭕️ 正解" : "❌ 不正解"}</span>
                     </div>
-                    
                     {result.name === userName && (
-                      <div className={`mt-2 pt-2 border-t text-right text-sm font-bold w-full ${result.isCorrect ? 'border-red-200 text-red-800' : 'border-gray-300 text-gray-600'}`}>
+                      <div className={`mt-2 pt-2 border-t text-right text-sm font-bold w-full ${result.isCorrect ? "border-red-200 text-red-800" : "border-gray-300 text-gray-600"}`}>
                         今回の獲得: +{result.pointsEarned || 0} pt ／ 現在の合計: {users[userName]?.score || 0} pt
                       </div>
                     )}
@@ -332,39 +406,38 @@ export default function Home() {
           </div>
         )}
 
-        {/* 最終結果発表モード */}
+        {/* 最終結果発表 */}
         {appState.mode === "finalResult" && (
           <div className="bg-white p-6 rounded-lg shadow text-center overflow-hidden">
             <h2 className="text-4xl font-extrabold mb-8 text-amber-500 animate-bounce">🏆 最終結果発表 🏆</h2>
             <p className="text-md text-gray-500 mb-6">全問終了！これまでの合計成績ランキングです！</p>
-            
+
             {sortedFinalResults.length === 0 ? (
               <p>データがありません。</p>
             ) : (
-              <div className="flex flex-col gap-2 transition-all duration-500">
+              <div className="flex flex-col gap-2">
                 {sortedFinalResults.slice(0, finalRevealIndex).reverse().map((item) => {
                   let medal = "";
                   if (item.rank === 1) medal = "🥇 ";
                   else if (item.rank === 2) medal = "🥈 ";
                   else if (item.rank === 3) medal = "🥉 ";
-
                   const isTop = item.rank === 1;
-
                   return (
-                    <div 
-                      key={item.name} 
+                    <div
+                      key={item.name}
                       className={`flex justify-between items-center text-xl p-4 rounded-lg border-2 shadow-sm animate-slide-in-right ${
-                        isTop 
-                          ? "bg-amber-50 border-amber-400 font-extrabold text-amber-900" 
-                          : "bg-gray-50 border-gray-200"
+                        isTop ? "bg-amber-50 border-amber-400 font-extrabold text-amber-900" : "bg-gray-50 border-gray-200"
                       }`}
                     >
-                      <span className="font-bold text-left truncate">
-                        {medal}{item.rank}位: {item.name}
-                      </span>
-                      <span className="text-blue-600 font-extrabold text-right">
-                        {item.score} pt
-                      </span>
+                      <div className="flex items-center gap-3 font-bold text-left truncate">
+                        {item.pictureUrl ? (
+                          <img src={item.pictureUrl} alt={item.name} className="w-9 h-9 rounded-full object-cover" />
+                        ) : (
+                          <span>👤</span>
+                        )}
+                        <span>{medal}{item.rank}位: {item.name}</span>
+                      </div>
+                      <span className="text-blue-600 font-extrabold text-right">{item.score} pt</span>
                     </div>
                   );
                 })}
