@@ -362,16 +362,23 @@ export function useQuizApp() {
     if (!lineProfile) return;
     const displayName = lineProfile.displayName;
     const userRef = ref(db, `users/${displayName}`);
-    const snap = await get(userRef);
+
+    let existingScore = 0;
+    try {
+      const snap = await get(userRef);
+      existingScore = snap.exists() ? (snap.val().score ?? 0) : 0;
+    } catch {
+      // 取得失敗時は0で続行
+    }
 
     try {
       await set(userRef, {
-        score: snap.exists() ? snap.val().score : 0,
+        score: existingScore,
         isOnline: true,
         isReady: false,
         lineUserId: lineProfile.userId,
-        displayName,
-        pictureUrl: lineProfile.pictureUrl,
+        displayName: displayName,
+        pictureUrl: lineProfile.pictureUrl ?? "",
       });
     } catch (e) {
       console.error("[join error]", e);
