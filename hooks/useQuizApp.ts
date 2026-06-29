@@ -69,7 +69,6 @@ export function useQuizApp() {
 
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
-  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [countdownValue, setCountdownValue] = useState(3);
   const [showReadyScreen, setShowReadyScreen] = useState(false);
 
@@ -365,13 +364,6 @@ export function useQuizApp() {
     const userRef = ref(db, `users/${displayName}`);
     const snap = await get(userRef);
 
-    if (snap.exists() && snap.val().lineUserId !== lineProfile.userId) {
-      setShowDuplicateModal(false);
-      setTimeout(() => setShowDuplicateModal(true), 50);
-      setTimeout(() => setShowDuplicateModal(false), 2500);
-      return;
-    }
-
     await set(userRef, {
       score: snap.exists() ? snap.val().score : 0,
       isOnline: true,
@@ -481,7 +473,6 @@ export function useQuizApp() {
     hasAnswered,
     showSaveModal,
     showResetModal,
-    showDuplicateModal,
     countdownValue,
     showReadyScreen,
     revealIndex,

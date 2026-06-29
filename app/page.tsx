@@ -8,7 +8,7 @@ import { db } from "../lib/firebase";
 export default function Home() {
   const {
     lineProfile, userName, isAdmin, isJoined, appState, questions, users, currentAnswers,
-    myQuestion, setMyQuestion, timeLeft, hasAnswered, showSaveModal, showResetModal, showDuplicateModal,
+    myQuestion, setMyQuestion, timeLeft, hasAnswered, showSaveModal, showResetModal,
     countdownValue, showReadyScreen,
     revealIndex, sortedResults, showCorrectAnswer, finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
@@ -97,15 +97,6 @@ export default function Home() {
   if (!lineProfile) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
-        {showDuplicateModal && (
-          <div className="fixed top-6 right-6 z-50 bg-red-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-red-400">
-            <span className="text-2xl">🚫</span>
-            <div>
-              <p className="font-extrabold text-lg">登録できません</p>
-              <p className="text-xs text-red-100">その名前は既に使われています</p>
-            </div>
-          </div>
-        )}
         <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md flex flex-col items-center">
           <h1 className="text-3xl font-extrabold mb-2 text-black tracking-tight">早押しクイズ</h1>
           <p className="text-gray-500 mb-8 font-medium">LINEアカウントでログインしてください</p>
@@ -133,15 +124,6 @@ export default function Home() {
             <div>
               <p className="font-extrabold text-lg">初期化しました</p>
               <p className="text-xs text-red-100">全データがクリアされました</p>
-            </div>
-          </div>
-        )}
-        {showDuplicateModal && (
-          <div className="fixed top-6 right-6 z-50 bg-red-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-red-400">
-            <span className="text-2xl">🚫</span>
-            <div>
-              <p className="font-extrabold text-lg">登録できません</p>
-              <p className="text-xs text-red-100">その名前は既に使われています</p>
             </div>
           </div>
         )}
