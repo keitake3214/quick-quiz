@@ -28,7 +28,9 @@ export async function GET(request: NextRequest) {
   });
 
   if (!tokenRes.ok) {
-    return NextResponse.redirect(new URL(`/?error=token_fetch_failed`, request.url));
+    const errBody = await tokenRes.text();
+    console.error("[LINE token error]", tokenRes.status, errBody);
+    return NextResponse.redirect(new URL(`/?error=token_fetch_failed&detail=${encodeURIComponent(errBody)}`, request.url));
   }
 
   const tokenData = await tokenRes.json();
