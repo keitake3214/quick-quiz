@@ -364,14 +364,20 @@ export function useQuizApp() {
     const userRef = ref(db, `users/${displayName}`);
     const snap = await get(userRef);
 
-    await set(userRef, {
-      score: snap.exists() ? snap.val().score : 0,
-      isOnline: true,
-      isReady: false,
-      lineUserId: lineProfile.userId,
-      displayName,
-      pictureUrl: lineProfile.pictureUrl,
-    });
+    try {
+      await set(userRef, {
+        score: snap.exists() ? snap.val().score : 0,
+        isOnline: true,
+        isReady: false,
+        lineUserId: lineProfile.userId,
+        displayName,
+        pictureUrl: lineProfile.pictureUrl,
+      });
+    } catch (e) {
+      console.error("[join error]", e);
+      alert("参加に失敗しました: " + String(e));
+      return;
+    }
     onDisconnect(ref(db, `users/${displayName}/isOnline`)).set(false);
     localStorage.setItem("quick_quiz_user_name", displayName);
     setUserName(displayName);
