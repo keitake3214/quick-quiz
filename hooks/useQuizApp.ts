@@ -72,7 +72,6 @@ export function useQuizApp() {
   });
   const [timeLeft, setTimeLeft] = useState(0);
   const [hasAnswered, setHasAnswered] = useState(false);
-  const [localStartTime, setLocalStartTime] = useState(0);
 
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
@@ -300,7 +299,7 @@ export function useQuizApp() {
         if (answerSnap.exists()) return;
         await set(ref(db, `currentAnswers/${name}`), {
           choice: randomChoice,
-          timeTaken: parseFloat((randomDelay / 1000).toFixed(3)),
+          timeTaken: parseFloat(((Date.now() - appState.questionStartTime) / 1000).toFixed(3)),
         });
       }, randomDelay);
     });
@@ -321,7 +320,6 @@ export function useQuizApp() {
   // --- 新しい問題が出た時のリセット ---
   useEffect(() => {
     setHasAnswered(false);
-    setLocalStartTime(Date.now());
   }, [appState.currentQuestionId]);
 
   // --- 結果発表フェーズ管理 ---
@@ -611,9 +609,11 @@ export function useQuizApp() {
   const submitAnswer = async (choiceIndex: number) => {
     if (hasAnswered || timeLeft === 0) return;
     setHasAnswered(true);
+    // 回答時間はローカル時刻ではなく、Firebaseに書き込まれた出題開始時刻(questionStartTime)を基準に計測
+    const timeTaken = (Date.now() - appState.questionStartTime) / 1000;
     await set(ref(db, `currentAnswers/${userName}`), {
       choice: choiceIndex,
-      timeTaken: (Date.now() - localStartTime) / 1000,
+      timeTaken: parseFloat(timeTaken.toFixed(3)),
     });
   };
 
