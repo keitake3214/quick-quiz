@@ -78,7 +78,7 @@ export default function Home() {
                     )}
                   </div>
                   <span className={`text-xs font-medium text-center break-all leading-tight ${!isOnline ? "text-gray-400" : "text-gray-700"}`}>
-                    {name === userName ? `${name}(あなた)` : name}
+                    {name === userName ? `${name}` : name}
                   </span>
                   {ready && (
                     <span className="text-xs font-bold text-green-600 bg-green-50 px-1 py-0.5 rounded">準備完了</span>
