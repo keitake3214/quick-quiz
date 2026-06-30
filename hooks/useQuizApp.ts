@@ -285,6 +285,30 @@ export function useQuizApp() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appState.mode, appState.countdownStartTime]);
 
+  // --- 出題開始時にテストユーザーを自動回答 ---
+  useEffect(() => {
+    if (appState.mode !== "execution" || !appState.currentQuestionId) return;
+    const testUsers = Object.keys(users).filter((name) => name.startsWith("テスト"));
+    if (testUsers.length === 0) return;
+    const timeLimit = appState.timeLimit || 20;
+
+    const timers = testUsers.map((name) => {
+      const randomChoice = Math.floor(Math.random() * 4);
+      const randomDelay = Math.floor((0.5 + Math.random() * (timeLimit * 0.95 - 0.5)) * 1000);
+      return setTimeout(async () => {
+        const snap = await get(ref(db, "appState/mode"));
+        if (snap.val() !== "execution") return;
+        await set(ref(db, `currentAnswers/${name}`), {
+          choice: randomChoice,
+          timeTaken: parseFloat((randomDelay / 1000).toFixed(3)),
+        });
+      }, randomDelay);
+    });
+
+    return () => timers.forEach(clearTimeout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appState.mode, appState.currentQuestionId]);
+
   // --- resultモードに移行したらテストユーザーのisReadyを自動trueに ---
   useEffect(() => {
     if (appState.mode !== "result") return;
