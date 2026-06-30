@@ -8,6 +8,8 @@ export type AppState = {
   mode: "registration" | "countdown" | "execution" | "result" | "finalResult";
   timeLimit: number;
   finalTransitionDelay: number;
+  resultRevealDelay: number;
+  resultAnswerDelay: number;
   currentQuestionId: string | null;
   currentQuestionText?: string;
   questionStartTime: number;
@@ -43,6 +45,15 @@ export type LineProfile = {
   pictureUrl: string;
 };
 
+export type ResultPhase =
+  | "idle"
+  | "showAnswerModal"
+  | "showAnswers"
+  | "showCorrectModal"
+  | "showCorrect"
+  | "showRanking"
+  | "showFinalCountdown";
+
 // --- バックエンドロジック本体 ---
 export function useQuizApp() {
   const [lineProfile, setLineProfile] = useState<LineProfile | null>(null);
@@ -53,6 +64,8 @@ export function useQuizApp() {
     mode: "registration",
     timeLimit: 20,
     finalTransitionDelay: 5,
+    resultRevealDelay: 5,
+    resultAnswerDelay: 5,
     currentQuestionId: null,
     questionStartTime: 0,
     askedQuestions: {},
@@ -75,13 +88,13 @@ export function useQuizApp() {
   const [countdownValue, setCountdownValue] = useState(3);
   const [showReadyScreen, setShowReadyScreen] = useState(false);
 
-  const [revealIndex, setRevealIndex] = useState(0);
   const [sortedResults, setSortedResults] = useState<any[]>([]);
-  const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
+  const [resultPhase, setResultPhase] = useState<ResultPhase>("idle");
+  const [shuffledAnswers, setShuffledAnswers] = useState<{ name: string; choice: number }[]>([]);
+  const [finalCountdown, setFinalCountdown] = useState(5);
 
   const [finalRevealIndex, setFinalRevealIndex] = useState(0);
   const [sortedFinalResults, setSortedFinalResults] = useState<any[]>([]);
-  const [finalCountdown, setFinalCountdown] = useState(5);
   const finalInitRef = useRef(false);
   const autoLoginProcessed = useRef(false);
   const countdownInitRef = useRef(false);
@@ -119,14 +132,11 @@ export function useQuizApp() {
       acc[k] = v;
       return acc;
     }, {} as Record<string, string>);
-
     if (cookies["line_user"]) {
       try {
         const profile: LineProfile = JSON.parse(decodeURIComponent(cookies["line_user"]));
         setLineProfile(profile);
-      } catch {
-        // ignore
-      }
+      } catch { /* ignore */ }
     }
   }, []);
 
@@ -144,7 +154,6 @@ export function useQuizApp() {
     const unsubUsers = onValue(ref(db, "users"), (s) => {
       const usersData = s.exists() ? s.val() : {};
       setUsers(usersData);
-
       if (!autoLoginProcessed.current) {
         autoLoginProcessed.current = true;
         const savedName = localStorage.getItem("quick_quiz_user_name");
@@ -159,12 +168,7 @@ export function useQuizApp() {
       }
     });
 
-    return () => {
-      unsubState();
-      unsubQuestions();
-      unsubUsers();
-      unsubAnswers();
-    };
+    return () => { unsubState(); unsubQuestions(); unsubUsers(); unsubAnswers(); };
   }, []);
 
   // --- isJoined確定後に確実にisOnline:trueを書き込む ---
@@ -172,21 +176,19 @@ export function useQuizApp() {
     if (!isJoined || !userName) return;
     update(ref(db, `users/${userName}`), { isOnline: true });
     onDisconnect(ref(db, `users/${userName}/isOnline`)).set(false);
-
     const goOnline = () => update(ref(db, `users/${userName}`), { isOnline: true });
     const handleVisibility = () => { if (document.visibilityState === "visible") goOnline(); };
-
-    // iOS Safariでは visibilitychange だけでは不安定なため、三種類を監視する
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("focus", goOnline);
     window.addEventListener("pageshow", goOnline);
-
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("focus", goOnline);
       window.removeEventListener("pageshow", goOnline);
     };
   }, [isJoined, userName]);
+
+  // --- 登録済み問題の復元 ---
   useEffect(() => {
     if (isJoined && userName && questions && questions[userName]) {
       setMyQuestion(questions[userName]);
@@ -214,23 +216,15 @@ export function useQuizApp() {
   }, [appState.mode, timeLeft]);
 
   // --- カウントダウン処理 ---
-  // countdownStartTime から経過秒数で Ready?(0秒目) → 3(1秒目) → 2(2秒目) → 1(3秒目) → 出題(4秒目)
   useEffect(() => {
     if (appState.mode === "countdown") {
       countdownInitRef.current = true;
       const startTime = appState.countdownStartTime || Date.now();
-
       const tick = () => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        if (elapsed === 0) {
-          setShowReadyScreen(true);
-          setCountdownValue(3);
-        } else if (elapsed >= 1 && elapsed <= 3) {
-          setShowReadyScreen(false);
-          setCountdownValue(4 - elapsed); // 1秒→3, 2秒→2, 3秒→1
-        }
+        if (elapsed === 0) { setShowReadyScreen(true); setCountdownValue(3); }
+        else if (elapsed >= 1 && elapsed <= 3) { setShowReadyScreen(false); setCountdownValue(4 - elapsed); }
       };
-
       tick();
       const interval = setInterval(tick, 200);
       return () => clearInterval(interval);
@@ -240,7 +234,7 @@ export function useQuizApp() {
     }
   }, [appState.mode, appState.countdownStartTime]);
 
-  // --- 全員準備完了チェック（registrationまたはresultからcountdownへ移行） ---
+  // --- 全員準備完了チェック ---
   useEffect(() => {
     if (appState.mode !== "registration" && appState.mode !== "result") return;
     const userEntries = Object.entries(users);
@@ -250,7 +244,6 @@ export function useQuizApp() {
     const allReady = onlineUsers.every(([, d]) => d.isReady === true);
     if (!allReady) return;
 
-    // resultモードかつ最終問題済みならReady?画面なしで直接最終結果へ
     if (appState.mode === "result") {
       const questionIds = Object.keys(questions || {});
       const askedIds = appState.askedQuestions ? Object.keys(appState.askedQuestions) : [];
@@ -263,22 +256,17 @@ export function useQuizApp() {
       }
     }
 
-    update(ref(db, "appState"), {
-      mode: "countdown",
-      countdownStartTime: Date.now(),
-    });
+    update(ref(db, "appState"), { mode: "countdown", countdownStartTime: Date.now() });
   }, [users, appState.mode, appState.askedQuestions, questions]);
 
-  // --- カウントダウン完了後に自動出題または最終結果 ---
+  // --- カウントダウン完了後に自動出題 ---
   useEffect(() => {
     if (appState.mode !== "countdown" || !appState.countdownStartTime) return;
     const remaining = 4000 - (Date.now() - appState.countdownStartTime);
     const delay = Math.max(remaining, 0);
     const timer = setTimeout(() => {
       const updates: Record<string, boolean> = {};
-      Object.keys(users).forEach((name) => {
-        updates[`users/${name}/isReady`] = false;
-      });
+      Object.keys(users).forEach((name) => { updates[`users/${name}/isReady`] = false; });
       update(ref(db), updates).then(() => nextQuestion());
     }, delay);
     return () => clearTimeout(timer);
@@ -291,7 +279,6 @@ export function useQuizApp() {
     const testUsers = Object.keys(users).filter((name) => name.startsWith("テスト"));
     if (testUsers.length === 0) return;
     const timeLimit = appState.timeLimit || 20;
-
     const timers = testUsers.map((name) => {
       const randomChoice = Math.floor(Math.random() * 4);
       const randomDelay = Math.floor((0.5 + Math.random() * (timeLimit * 0.95 - 0.5)) * 1000);
@@ -304,7 +291,6 @@ export function useQuizApp() {
         });
       }, randomDelay);
     });
-
     return () => timers.forEach(clearTimeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appState.mode, appState.currentQuestionId]);
@@ -318,17 +304,33 @@ export function useQuizApp() {
     testUsers.forEach((name) => { updates[`users/${name}/isReady`] = true; });
     update(ref(db), updates);
   }, [appState.mode, users]);
+
+  // --- 新しい問題が出た時のリセット ---
   useEffect(() => {
     setHasAnswered(false);
     setLocalStartTime(Date.now());
   }, [appState.currentQuestionId]);
 
-  // --- 各問の結果発表アニメーション ---
+  // --- 結果発表フェーズ管理 ---
+  // idle → showAnswerModal(2s) → showAnswers → showCorrectModal(2s) → showCorrect → showRanking → showFinalCountdown
   useEffect(() => {
-    if (appState.mode === "result" && appState.currentQuestionId) {
-      const currentQ = questions[appState.currentQuestionId];
-      if (!currentQ) return;
+    if (appState.mode !== "result" || !appState.currentQuestionId) {
+      setResultPhase("idle");
+      setShuffledAnswers([]);
+      setFinalCountdown(appState.finalTransitionDelay ?? 5);
+      return;
+    }
 
+    const currentQ = questions[appState.currentQuestionId];
+    const revealDelay = (appState.resultRevealDelay ?? 5) * 1000;
+    const answerDelay = (appState.resultAnswerDelay ?? 5) * 1000;
+
+    // 回答者リストをシャッフル
+    const answers = Object.entries(currentAnswers).map(([name, d]) => ({ name, choice: d.choice }));
+    setShuffledAnswers([...answers].sort(() => Math.random() - 0.5));
+
+    // sortedResults（ランキング用）
+    if (currentQ) {
       const resultsArray = Object.entries(currentAnswers).map(([name, data]) => ({
         name,
         isCorrect: data.choice === currentQ.correctIndex,
@@ -336,23 +338,51 @@ export function useQuizApp() {
         choice: data.choice,
         pointsEarned: data.pointsEarned || 0,
       }));
-
       resultsArray.sort((a, b) => {
         if (a.isCorrect !== b.isCorrect) return a.isCorrect ? 1 : -1;
-        return b.timeTaken - a.timeTaken;
+        return a.timeTaken - b.timeTaken;
       });
-
       setSortedResults(resultsArray);
-      setRevealIndex(0);
-
-      const interval = setInterval(() => {
-        setRevealIndex((prev) =>
-          prev >= resultsArray.length ? (clearInterval(interval), prev) : prev + 1
-        );
-      }, 1500);
-      return () => clearInterval(interval);
     }
-  }, [appState.mode, appState.currentQuestionId, currentAnswers, questions]);
+
+    const t0 = revealDelay;           // showAnswerModal
+    const t1 = t0 + 2000;             // showAnswers
+    const t2 = t1 + answerDelay;      // showCorrectModal
+    const t3 = t2 + 2000;             // showCorrect
+    const t4 = t3 + 2000;             // showRanking
+
+    const timers: ReturnType<typeof setTimeout>[] = [
+      setTimeout(() => setResultPhase("showAnswerModal"), t0),
+      setTimeout(() => setResultPhase("showAnswers"), t1),
+      setTimeout(() => setResultPhase("showCorrectModal"), t2),
+      setTimeout(() => setResultPhase("showCorrect"), t3),
+      setTimeout(() => setResultPhase("showRanking"), t4),
+    ];
+
+    if (isLastQuestion) {
+      const finalDelay = appState.finalTransitionDelay ?? 5;
+      const t5 = t4 + 2000;
+      timers.push(setTimeout(() => {
+        setResultPhase("showFinalCountdown");
+        setFinalCountdown(finalDelay);
+        const countInterval = setInterval(() => {
+          setFinalCountdown((prev) => {
+            if (prev <= 1) { clearInterval(countInterval); return 0; }
+            return prev - 1;
+          });
+        }, 1000);
+        setTimeout(() => {
+          clearInterval(countInterval);
+          const updates: Record<string, boolean> = {};
+          Object.entries(users).forEach(([name]) => { updates[`users/${name}/isReady`] = false; });
+          update(ref(db), updates).then(() => setMode("finalResult"));
+        }, finalDelay * 1000);
+      }, t5));
+    }
+
+    return () => timers.forEach(clearTimeout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appState.mode, appState.currentQuestionId]);
 
   // --- 最終結果アニメーション ---
   useEffect(() => {
@@ -365,18 +395,11 @@ export function useQuizApp() {
         rank: 0,
         pictureUrl: data.pictureUrl || "",
       }));
-
       finalArr.sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
-        // 同スコアなら累計回答時間が少ない方が上位
         return a.totalTimeTaken - b.totalTimeTaken;
       });
-
-      let currentRank = 1;
-      finalArr.forEach((item, idx) => {
-        item.rank = idx + 1;
-        currentRank = idx + 1;
-      });
+      finalArr.forEach((item, idx) => { item.rank = idx + 1; });
       finalArr.reverse();
 
       setSortedFinalResults(finalArr);
@@ -393,46 +416,9 @@ export function useQuizApp() {
     }
   }, [appState.mode, users]);
 
-  // --- 正解表示タイマー ---
-  useEffect(() => {
-    if (appState.mode !== "result") return setShowCorrectAnswer(false);
-    if (sortedResults.length === 0 || revealIndex === sortedResults.length) {
-      const timer = setTimeout(() => setShowCorrectAnswer(true), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [appState.mode, revealIndex, sortedResults.length]);
-
-  // --- 最終問題の結果画面で正解表示後にfinalTransitionDelay秒で自動最終結果へ ---
-  useEffect(() => {
-    if (appState.mode !== "result" || !showCorrectAnswer || !isLastQuestion) {
-      setFinalCountdown(appState.finalTransitionDelay ?? 5);
-      return;
-    }
-    const delay = appState.finalTransitionDelay ?? 5;
-    setFinalCountdown(delay);
-    const interval = setInterval(() => {
-      setFinalCountdown((prev) => {
-        if (prev <= 1) { clearInterval(interval); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-    const timer = setTimeout(() => {
-      const updates: Record<string, boolean> = {};
-      Object.entries(users).forEach(([name]) => { updates[`users/${name}/isReady`] = false; });
-      update(ref(db), updates).then(() => setMode("finalResult"));
-    }, delay * 1000);
-    return () => { clearInterval(interval); clearTimeout(timer); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appState.mode, showCorrectAnswer, isLastQuestion, appState.finalTransitionDelay]);
-
   // --- 初期化時の自動キックアウト ---
   useEffect(() => {
-    if (
-      isJoined &&
-      userName &&
-      autoLoginProcessed.current &&
-      (!users || !users[userName])
-    ) {
+    if (isJoined && userName && autoLoginProcessed.current && (!users || !users[userName])) {
       setIsJoined(false);
       setUserName("");
       localStorage.removeItem("quick_quiz_user_name");
@@ -445,30 +431,26 @@ export function useQuizApp() {
     const clientId = process.env.NEXT_PUBLIC_LINE_CHANNEL_ID;
     const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/line-callback`);
     const state = Math.random().toString(36).slice(2);
-    const url = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=profile`;
-    window.location.href = url;
+    window.location.href = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=profile`;
   };
 
   const join = async () => {
     if (!lineProfile) return;
     const displayName = lineProfile.displayName;
     const userRef = ref(db, `users/${displayName}`);
-
     let existingScore = 0;
     try {
       const snap = await get(userRef);
       existingScore = snap.exists() ? (snap.val().score ?? 0) : 0;
-    } catch {
-      // 取得失敗時は0で続行
-    }
-
+    } catch { /* 取得失敗時は0 */ }
     try {
       await set(userRef, {
         score: existingScore,
+        totalTimeTaken: 0,
         isOnline: true,
         isReady: false,
         lineUserId: lineProfile.userId,
-        displayName: displayName,
+        displayName,
         pictureUrl: lineProfile.pictureUrl ?? "",
       });
     } catch (e) {
@@ -485,7 +467,6 @@ export function useQuizApp() {
 
   const toggleReady = async () => {
     if (!userName) return;
-    // registrationモードでは問題が保存済みの場合のみ準備完了にできる
     if (appState.mode === "registration" && !questions[userName]) return;
     const current = users[userName]?.isReady || false;
     await update(ref(db, `users/${userName}`), { isReady: !current });
@@ -501,7 +482,6 @@ export function useQuizApp() {
   const setMode = async (mode: AppState["mode"]) => update(ref(db, "appState"), { mode });
 
   const resetGameToRegistration = async () => {
-    // updateでnullを指定する方法は信頼性が低いため、各ノードを個別にremoveする
     await Promise.all([
       remove(ref(db, "users")),
       remove(ref(db, "questions")),
@@ -526,19 +506,13 @@ export function useQuizApp() {
     ]);
   };
 
-  // --- テストユーザー追加（PRE環境テスト用） ---
   const addTestUsers = async (count: number) => {
     const updates: Record<string, any> = {};
     for (let i = 1; i <= count; i++) {
       const name = `テスト${i}`;
       updates[`users/${name}`] = {
-        score: 0,
-        totalTimeTaken: 0,
-        isOnline: true,
-        isReady: true,
-        lineUserId: `test_user_${i}`,
-        displayName: name,
-        pictureUrl: "",
+        score: 0, totalTimeTaken: 0, isOnline: true, isReady: true,
+        lineUserId: `test_user_${i}`, displayName: name, pictureUrl: "",
       };
       updates[`questions/${name}`] = {
         text: "テスト用問題",
@@ -549,14 +523,12 @@ export function useQuizApp() {
     await update(ref(db), updates);
   };
 
-  // --- テストユーザー自動回答（executionモード中に呼び出す） ---
   const runTestAnswers = async () => {
     if (appState.mode !== "execution" || !appState.currentQuestionId) return;
     const testUsers = Object.entries(users).filter(([name]) => name.startsWith("テスト"));
     const timeLimit = appState.timeLimit || 20;
     for (const [name] of testUsers) {
       const randomChoice = Math.floor(Math.random() * 4);
-      // 0.5秒から制限時間の95%の間でランダムに回答
       const randomTime = 0.5 + Math.random() * (timeLimit * 0.95 - 0.5);
       await set(ref(db, `currentAnswers/${name}`), {
         choice: randomChoice,
@@ -568,11 +540,9 @@ export function useQuizApp() {
   const nextQuestion = async () => {
     const questionIds = Object.keys(questions || {});
     if (questionIds.length === 0) return alert("問題が登録されていません");
-
     const askedIds = appState.askedQuestions ? Object.keys(appState.askedQuestions) : [];
     const unaskedIds = questionIds.filter((id) => !askedIds.includes(id));
-    if (unaskedIds.length === 0) return alert("すべての問題が出題済みです。最終結果を発表してください。");
-
+    if (unaskedIds.length === 0) return alert("すべての問題が出題済みです。");
     const randomId = unaskedIds[Math.floor(Math.random() * unaskedIds.length)];
     await update(ref(db), {
       "appState/mode": "execution",
@@ -590,7 +560,6 @@ export function useQuizApp() {
       const correctAnswers = Object.entries(currentAnswers)
         .filter(([, d]) => d.choice === currentQ.correctIndex)
         .sort(([, a], [, b]) => (a.timeTaken || 0) - (b.timeTaken || 0));
-
       correctAnswers.forEach(([userId], index) => {
         let points = 1;
         if (index === 0) points += 3;
@@ -599,7 +568,6 @@ export function useQuizApp() {
         updates[`users/${userId}/score`] = (users[userId]?.score || 0) + points;
         updates[`currentAnswers/${userId}/pointsEarned`] = points;
       });
-      // 全回答者の累計回答時間を加算（正解は実時間、不正解は制限時間を加算）
       Object.entries(currentAnswers).forEach(([userId, answerData]) => {
         const isCorrect = answerData.choice === currentQ.correctIndex;
         const addTime = isCorrect ? (answerData.timeTaken || 0) : (appState.timeLimit || 20);
@@ -623,42 +591,13 @@ export function useQuizApp() {
   };
 
   return {
-    lineProfile,
-    userName,
-    setUserName,
-    isJoined,
-    appState,
-    questions,
-    users,
-    currentAnswers,
-    myQuestion,
-    setMyQuestion,
-    timeLeft,
-    hasAnswered,
-    showSaveModal,
-    showResetModal,
-    countdownValue,
-    showReadyScreen,
-    revealIndex,
-    sortedResults,
-    showCorrectAnswer,
-    finalCountdown,
-    finalRevealIndex,
-    sortedFinalResults,
-    totalQuestions,
-    askedCount,
-    isLastQuestion,
-    loginWithLine,
-    join,
-    toggleReady,
-    saveQuestion,
-    setMode,
-    resetGameToRegistration,
-    removeUser,
-    addTestUsers,
-    runTestAnswers,
-    nextQuestion,
-    showResults,
-    submitAnswer,
+    lineProfile, userName, setUserName, isJoined, appState, questions, users, currentAnswers,
+    myQuestion, setMyQuestion, timeLeft, hasAnswered, showSaveModal, showResetModal,
+    countdownValue, showReadyScreen,
+    sortedResults, resultPhase, shuffledAnswers, finalCountdown,
+    finalRevealIndex, sortedFinalResults,
+    totalQuestions, askedCount, isLastQuestion,
+    loginWithLine, join, toggleReady, saveQuestion, setMode, resetGameToRegistration,
+    removeUser, addTestUsers, runTestAnswers, nextQuestion, showResults, submitAnswer,
   };
 }

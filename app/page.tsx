@@ -10,7 +10,7 @@ export default function Home() {
     lineProfile, userName, isJoined, appState, questions, users, currentAnswers,
     myQuestion, setMyQuestion, timeLeft, hasAnswered, showSaveModal, showResetModal,
     countdownValue, showReadyScreen,
-    revealIndex, sortedResults, showCorrectAnswer, finalCountdown, finalRevealIndex, sortedFinalResults,
+    sortedResults, resultPhase, shuffledAnswers, finalCountdown, finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
     loginWithLine, join, toggleReady, saveQuestion, setMode, resetGameToRegistration,
     removeUser, addTestUsers, runTestAnswers, nextQuestion, showResults, submitAnswer
@@ -229,11 +229,27 @@ export default function Home() {
                   <div>
                     <label className="block text-sm font-bold text-gray-600 mb-1">最終結果までの秒数（秒）</label>
                     <input
-                      type="number"
-                      min={3}
-                      max={30}
+                      type="number" min={3} max={30}
                       value={appState.finalTransitionDelay ?? 5}
                       onChange={(e) => update(ref(db, "appState"), { finalTransitionDelay: Number(e.target.value) })}
+                      className="w-full border-2 border-gray-300 rounded-lg p-2 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">回答表示までの秒数（秒）</label>
+                    <input
+                      type="number" min={1} max={30}
+                      value={appState.resultRevealDelay ?? 5}
+                      onChange={(e) => update(ref(db, "appState"), { resultRevealDelay: Number(e.target.value) })}
+                      className="w-full border-2 border-gray-300 rounded-lg p-2 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">正解表示までの秒数（秒）</label>
+                    <input
+                      type="number" min={1} max={30}
+                      value={appState.resultAnswerDelay ?? 5}
+                      onChange={(e) => update(ref(db, "appState"), { resultAnswerDelay: Number(e.target.value) })}
                       className="w-full border-2 border-gray-300 rounded-lg p-2 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
                     />
                   </div>
@@ -454,85 +470,126 @@ export default function Home() {
         )}
 
         {/* 各問の結果発表 */}
-        {appState.mode === "result" && appState.currentQuestionId && (
-          <div className="bg-white p-6 rounded-lg shadow text-center overflow-hidden">
+        {appState.mode === "result" && appState.currentQuestionId && (() => {
+          const currentQ = questions[appState.currentQuestionId];
+          const correctIndex = currentQ?.correctIndex ?? -1;
+          const correctText = currentQ?.choices[correctIndex] ?? "";
+          const showAnswers = ["showAnswers", "showCorrectModal", "showCorrect", "showRanking", "showFinalCountdown"].includes(resultPhase);
+          const showCorrect = ["showCorrect", "showRanking", "showFinalCountdown"].includes(resultPhase);
+          const showRanking = ["showRanking", "showFinalCountdown"].includes(resultPhase);
+          const correctResults = sortedResults.filter((r) => r.isCorrect);
 
-            {/* 問題文 */}
-            <p className="text-sm text-gray-400 mb-1">問題</p>
-            <h3 className="text-xl font-bold mb-6 text-gray-800">
-              {appState.currentQuestionText || questions[appState.currentQuestionId]?.text}
-            </h3>
+          return (
+            <div className="bg-white p-6 rounded-lg shadow text-center overflow-hidden relative">
 
-            {showCorrectAnswer && (
-              <div className="mb-8 p-4 bg-yellow-100 border-4 border-yellow-400 rounded-lg animate-pulse">
-                <h2 className="text-xl font-bold text-gray-700 mb-2">正解は...</h2>
-                <p className="text-4xl font-extrabold text-red-600">
-                  「{questions[appState.currentQuestionId].choices[questions[appState.currentQuestionId].correctIndex]}」
-                </p>
-                <p className="text-xl font-bold text-gray-700 mt-2">です！</p>
-              </div>
-            )}
-
-            <h3 className="text-xl font-bold mb-6 text-gray-500">今回の結果</h3>
-
-            {sortedResults.length === 0 ? (
-              showCorrectAnswer ? (
-                <div className="mb-8 p-4 bg-yellow-100 border-4 border-yellow-400 rounded-lg">
-                  <p className="text-xl font-bold text-gray-700 mb-2">誰も回答しませんでした！正解は...</p>
-                  <p className="text-4xl font-extrabold text-red-600">
-                    「{questions[appState.currentQuestionId].choices[questions[appState.currentQuestionId].correctIndex]}」
-                  </p>
-                </div>
-              ) : (
-                <p>集計中...</p>
-              )
-            ) : (
-              <div className="flex flex-col gap-2">
-                {sortedResults.slice(0, revealIndex).reverse().map((result) => (
-                  <div
-                    key={result.name}
-                    className={`flex flex-col p-3 md:p-4 rounded-xl border-2 shadow-sm animate-slide-in-right ${
-                      result.isCorrect ? "bg-red-50 border-red-200 text-red-700 font-bold" : "bg-gray-100 border-gray-300 text-gray-500"
-                    }`}
-                  >
-                    <div className="flex justify-between items-center text-lg md:text-xl w-full">
-                      <div className="flex items-center gap-2 w-1/3">
-                        {users[result.name]?.pictureUrl ? (
-                          <img src={users[result.name].pictureUrl} alt={result.name} className="w-7 h-7 rounded-full object-cover" />
-                        ) : (
-                          <span>👤</span>
-                        )}
-                        <span className="truncate">{result.name}</span>
-                      </div>
-                      <span className="w-1/3 text-center">{result.timeTaken.toFixed(3)} 秒</span>
-                      <span className="w-1/3 text-right">{result.isCorrect ? "⭕️ 正解" : "❌ 不正解"}</span>
-                    </div>
-                    {result.name === userName && (
-                      <div className={`mt-2 pt-2 border-t text-right text-sm font-bold w-full ${result.isCorrect ? "border-red-200 text-red-800" : "border-gray-300 text-gray-600"}`}>
-                        今回の獲得: +{result.pointsEarned || 0} pt ／ 現在の合計: {users[userName]?.score || 0} pt
-                      </div>
-                    )}
+              {/* みなさんの回答は？モーダル */}
+              {resultPhase === "showAnswerModal" && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                  <div className="bg-white rounded-2xl shadow-2xl px-10 py-8 text-center animate-bounce">
+                    <p className="text-3xl font-extrabold text-gray-800">みなさんの回答結果は？</p>
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+              )}
 
-            {/* 正解表示後に次の問題への準備ロビーを表示（最後の問題は変わりにカウントダウンで自動遷移） */}
-            {showCorrectAnswer && !isLastQuestion && (
-              <div className="mt-8">
-                <LobbyUI />
+              {/* 正解は...モーダル */}
+              {resultPhase === "showCorrectModal" && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                  <div className="bg-white rounded-2xl shadow-2xl px-10 py-8 text-center animate-bounce">
+                    <p className="text-3xl font-extrabold text-gray-800">正解は...</p>
+                  </div>
+                </div>
+              )}
+
+              {/* 問題文 */}
+              <p className="text-sm text-gray-400 mb-1">問題</p>
+              <h3 className="text-xl font-bold mb-6 text-gray-800">
+                {appState.currentQuestionText || currentQ?.text}
+              </h3>
+
+              {/* 選択肢と回答者アイコン */}
+              <div className="grid grid-cols-1 gap-3 mb-6">
+                {currentQ?.choices.map((choice, idx) => {
+                  const isCorrectChoice = idx === correctIndex;
+                  const greyOut = showCorrect && !isCorrectChoice;
+                  const answerers = shuffledAnswers.filter((a) => a.choice === idx);
+                  return (
+                    <div
+                      key={idx}
+                      className={`p-3 rounded-xl border-2 text-left transition-all duration-500 ${
+                        greyOut
+                          ? "border-gray-200 bg-gray-100 opacity-40"
+                          : showCorrect && isCorrectChoice
+                            ? "border-yellow-400 bg-yellow-50"
+                            : "border-gray-200 bg-gray-50"
+                      }`}
+                    >
+                      <p className={`font-bold text-lg mb-2 ${
+                        greyOut ? "text-gray-400" : showCorrect && isCorrectChoice ? "text-yellow-700" : "text-gray-800"
+                      }`}>
+                        {showCorrect && isCorrectChoice && "✅ "}{choice}
+                      </p>
+                      {showAnswers && answerers.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {answerers.map(({ name }) => (
+                            <div key={name} className="flex flex-col items-center gap-0.5">
+                              {users[name]?.pictureUrl ? (
+                                <img src={users[name].pictureUrl} alt={name} className="w-8 h-8 rounded-full object-cover border-2 border-white shadow" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-sm">👤</div>
+                              )}
+                              <span className="text-xs text-gray-600 text-center max-w-[3rem] truncate">{name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            )}
-            {showCorrectAnswer && isLastQuestion && (
-              <div className="mt-8 p-5 bg-gray-800 rounded-2xl text-white text-center">
-                <p className="text-2xl font-extrabold mb-2">🎉 全問終了！</p>
-                <p className="text-gray-300 mb-4">最終結果発表の時間です</p>
-                <p className="text-6xl font-black text-yellow-400">{finalCountdown}</p>
-                <p className="text-gray-400 text-sm mt-2">秒後に最終結果画面へ</p>
-              </div>
-            )}
-          </div>
-        )}
+
+              {/* ランキング（正解者のみ） */}
+              {showRanking && (
+                <div className="mt-4">
+                  <h3 className="text-lg font-bold mb-3 text-gray-500">今回の正解者</h3>
+                  {correctResults.length === 0 ? (
+                    <p className="text-gray-400">正解者はいませんでした</p>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {correctResults.map((result, i) => (
+                        <div key={result.name} className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border-2 border-red-200 text-red-700 font-bold">
+                          <span className="text-lg font-black w-6">{i + 1}.</span>
+                          {users[result.name]?.pictureUrl ? (
+                            <img src={users[result.name].pictureUrl} alt={result.name} className="w-8 h-8 rounded-full object-cover" />
+                          ) : <span>👤</span>}
+                          <span className="flex-1 truncate">{result.name}</span>
+                          <span className="text-sm">{result.timeTaken.toFixed(3)} 秒</span>
+                          <span className="text-sm">+{result.pointsEarned || 0} pt</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 次の問題への準備ロビー */}
+              {showRanking && !isLastQuestion && (
+                <div className="mt-8"><LobbyUI /></div>
+              )}
+
+              {/* 最終問題カウントダウン（画面中央モーダル） */}
+              {resultPhase === "showFinalCountdown" && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+                  <div className="bg-gray-900 rounded-2xl shadow-2xl px-12 py-10 text-center">
+                    <p className="text-2xl font-extrabold text-white mb-2">🎉 全問終了！</p>
+                    <p className="text-gray-300 mb-6">最終結果発表の時間です</p>
+                    <p className="text-8xl font-black text-yellow-400">{finalCountdown}</p>
+                    <p className="text-gray-400 text-sm mt-4">秒後に最終結果画面へ</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* 最終結果発表 */}
         {appState.mode === "finalResult" && (
