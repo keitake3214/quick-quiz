@@ -10,7 +10,7 @@ export default function Home() {
     lineProfile, userName, isAdmin, isJoined, appState, questions, users, currentAnswers,
     myQuestion, setMyQuestion, timeLeft, hasAnswered, showSaveModal, showResetModal,
     countdownValue, showReadyScreen,
-    revealIndex, sortedResults, showCorrectAnswer, finalRevealIndex, sortedFinalResults,
+    revealIndex, sortedResults, showCorrectAnswer, finalCountdown, finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
     loginWithLine, join, toggleReady, saveQuestion, setMode, resetGameToRegistration,
     removeUser, nextQuestion, showResults, submitAnswer
@@ -384,7 +384,9 @@ export default function Home() {
 
             {/* 問題文 */}
             <p className="text-sm text-gray-400 mb-1">問題</p>
-            <h3 className="text-xl font-bold mb-6 text-gray-800">{questions[appState.currentQuestionId]?.text}</h3>
+            <h3 className="text-xl font-bold mb-6 text-gray-800">
+              {appState.currentQuestionText || questions[appState.currentQuestionId]?.text}
+            </h3>
 
             {showCorrectAnswer && (
               <div className="mb-8 p-4 bg-yellow-100 border-4 border-yellow-400 rounded-lg animate-pulse">
@@ -447,7 +449,12 @@ export default function Home() {
               </div>
             )}
             {showCorrectAnswer && isLastQuestion && (
-              <p className="mt-6 text-gray-400 text-sm">最終結果に移動します...</p>
+              <div className="mt-8 p-5 bg-gray-800 rounded-2xl text-white text-center">
+                <p className="text-2xl font-extrabold mb-2">🎉 全問終了！</p>
+                <p className="text-gray-300 mb-4">最終結果発表の時間です</p>
+                <p className="text-6xl font-black text-yellow-400">{finalCountdown}</p>
+                <p className="text-gray-400 text-sm mt-2">秒後に最終結果画面へ</p>
+              </div>
             )}
           </div>
         )}

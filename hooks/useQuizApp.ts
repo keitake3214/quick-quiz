@@ -8,6 +8,7 @@ export type AppState = {
   mode: "registration" | "countdown" | "execution" | "result" | "finalResult";
   timeLimit: number;
   currentQuestionId: string | null;
+  currentQuestionText?: string;
   questionStartTime: number;
   askedQuestions?: Record<string, boolean>;
   countdownStartTime?: number;
@@ -78,6 +79,7 @@ export function useQuizApp() {
 
   const [finalRevealIndex, setFinalRevealIndex] = useState(0);
   const [sortedFinalResults, setSortedFinalResults] = useState<any[]>([]);
+  const [finalCountdown, setFinalCountdown] = useState(5);
   const finalInitRef = useRef(false);
   const autoLoginProcessed = useRef(false);
   const countdownInitRef = useRef(false);
@@ -373,15 +375,25 @@ export function useQuizApp() {
     }
   }, [appState.mode, revealIndex, sortedResults.length]);
 
-  // --- 最終問題の結果画面で正解表示後2秒で自動最終結果へ ---
+  // --- 最終問題の結果画面で正解表示後5秒で自動最終結果へ ---
   useEffect(() => {
-    if (appState.mode !== "result" || !showCorrectAnswer || !isLastQuestion) return;
+    if (appState.mode !== "result" || !showCorrectAnswer || !isLastQuestion) {
+      setFinalCountdown(5);
+      return;
+    }
+    setFinalCountdown(5);
+    const interval = setInterval(() => {
+      setFinalCountdown((prev) => {
+        if (prev <= 1) { clearInterval(interval); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
     const timer = setTimeout(() => {
       const updates: Record<string, boolean> = {};
       Object.entries(users).forEach(([name]) => { updates[`users/${name}/isReady`] = false; });
       update(ref(db), updates).then(() => setMode("finalResult"));
-    }, 2000);
-    return () => clearTimeout(timer);
+    }, 5000);
+    return () => { clearInterval(interval); clearTimeout(timer); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appState.mode, showCorrectAnswer, isLastQuestion]);
 
@@ -522,7 +534,10 @@ export function useQuizApp() {
       });
       if (Object.keys(updates).length > 0) await update(ref(db), updates);
     }
-    await setMode("result");
+    await update(ref(db, "appState"), {
+      mode: "result",
+      currentQuestionText: currentQ?.text ?? "",
+    });
   };
 
   const submitAnswer = async (choiceIndex: number) => {
@@ -555,6 +570,7 @@ export function useQuizApp() {
     revealIndex,
     sortedResults,
     showCorrectAnswer,
+    finalCountdown,
     finalRevealIndex,
     sortedFinalResults,
     totalQuestions,
