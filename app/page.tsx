@@ -91,7 +91,8 @@ export default function Home() {
 
         {showReadyBtn && (() => {
           const questionSaved = !!questions[userName];
-          const canReady = appState.mode !== "registration" || questionSaved;
+          const choicesFilled = questionSaved && questions[userName].choices.every((c) => c.trim() !== "");
+          const canReady = appState.mode !== "registration" || (questionSaved && choicesFilled);
           return (
             <button
               onClick={toggleReady}
@@ -380,6 +381,11 @@ export default function Home() {
         {/* 各問の結果発表 */}
         {appState.mode === "result" && appState.currentQuestionId && (
           <div className="bg-white p-6 rounded-lg shadow text-center overflow-hidden">
+
+            {/* 問題文 */}
+            <p className="text-sm text-gray-400 mb-1">問題</p>
+            <h3 className="text-xl font-bold mb-6 text-gray-800">{questions[appState.currentQuestionId]?.text}</h3>
+
             {showCorrectAnswer && (
               <div className="mb-8 p-4 bg-yellow-100 border-4 border-yellow-400 rounded-lg animate-pulse">
                 <h2 className="text-xl font-bold text-gray-700 mb-2">正解は...</h2>
@@ -434,11 +440,14 @@ export default function Home() {
               </div>
             )}
 
-            {/* 正解表示後に次の問題への準備ロビーを表示 */}
-            {showCorrectAnswer && (
+            {/* 正解表示後に次の問題への準備ロビーを表示（最後の問題は変わりにカウントダウンで自動遷移） */}
+            {showCorrectAnswer && !isLastQuestion && (
               <div className="mt-8">
                 <LobbyUI />
               </div>
+            )}
+            {showCorrectAnswer && isLastQuestion && (
+              <p className="mt-6 text-gray-400 text-sm">最終結果に移動します...</p>
             )}
           </div>
         )}

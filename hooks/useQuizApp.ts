@@ -373,6 +373,18 @@ export function useQuizApp() {
     }
   }, [appState.mode, revealIndex, sortedResults.length]);
 
+  // --- 最終問題の結果画面で正解表示後2秒で自動最終結果へ ---
+  useEffect(() => {
+    if (appState.mode !== "result" || !showCorrectAnswer || !isLastQuestion) return;
+    const timer = setTimeout(() => {
+      const updates: Record<string, boolean> = {};
+      Object.entries(users).forEach(([name]) => { updates[`users/${name}/isReady`] = false; });
+      update(ref(db), updates).then(() => setMode("finalResult"));
+    }, 2000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appState.mode, showCorrectAnswer, isLastQuestion]);
+
   // --- 初期化時の自動キックアウト ---
   useEffect(() => {
     if (
