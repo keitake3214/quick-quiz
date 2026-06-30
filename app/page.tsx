@@ -596,10 +596,15 @@ export default function Home() {
             {/* ロビーに戻るボタン */}
             {finalRevealIndex >= sortedFinalResults.length && sortedFinalResults.length > 0 && (
               <button
-                onClick={resetGameToRegistration}
-                className="mt-8 w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-xl font-bold text-lg shadow transition-colors"
+                onClick={isOwner ? resetGameToRegistration : undefined}
+                disabled={!isOwner}
+                className={`mt-8 w-full py-4 rounded-xl font-bold text-lg shadow transition-colors ${
+                  isOwner
+                    ? "bg-blue-500 hover:bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                }`}
               >
-                ロビーに戻る
+                {isOwner ? "ロビーに戻る" : "ゲーム終了"}
               </button>
             )}
           </div>
