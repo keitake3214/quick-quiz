@@ -7,6 +7,7 @@ import { ref, onValue, set, update, get, remove, onDisconnect } from "firebase/d
 export type AppState = {
   mode: "registration" | "countdown" | "execution" | "result" | "finalResult";
   timeLimit: number;
+  finalTransitionDelay: number;
   currentQuestionId: string | null;
   currentQuestionText?: string;
   questionStartTime: number;
@@ -22,6 +23,7 @@ export type Question = {
 
 export type UserData = {
   score: number;
+  totalTimeTaken: number;
   isOnline?: boolean;
   isReady?: boolean;
   lineUserId?: string;
@@ -45,12 +47,12 @@ export type LineProfile = {
 export function useQuizApp() {
   const [lineProfile, setLineProfile] = useState<LineProfile | null>(null);
   const [userName, setUserName] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
   const [isJoined, setIsJoined] = useState(false);
 
   const [appState, setAppState] = useState<AppState>({
     mode: "registration",
     timeLimit: 20,
+    finalTransitionDelay: 5,
     currentQuestionId: null,
     questionStartTime: 0,
     askedQuestions: {},
@@ -131,11 +133,6 @@ export function useQuizApp() {
   // --- Firebaseデータ購読 & 自動ログインチェック ---
   useEffect(() => {
     signInAnonymously(auth).catch(console.error);
-
-    const params = new URLSearchParams(window.location.search);
-    const adminParam = params.get("admin");
-    const secretKey = process.env.NEXT_PUBLIC_ADMIN_SECRET;
-    if (adminParam && secretKey && adminParam === secretKey) setIsAdmin(true);
 
     const unsubState = onValue(ref(db, "appState"), (s) => s.exists() && setAppState(s.val()));
     const unsubQuestions = onValue(ref(db, "questions"), (s) =>
@@ -332,23 +329,21 @@ export function useQuizApp() {
       const finalArr = Object.entries(users || {}).map(([name, data]) => ({
         name,
         score: data.score ?? 0,
+        totalTimeTaken: data.totalTimeTaken ?? 0,
         rank: 0,
         pictureUrl: data.pictureUrl || "",
       }));
 
       finalArr.sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
-        return a.name.localeCompare(b.name);
+        // 同スコアなら累計回答時間が少ない方が上位
+        return a.totalTimeTaken - b.totalTimeTaken;
       });
 
-      let currentRank = 1,
-        prevScore = -1;
+      let currentRank = 1;
       finalArr.forEach((item, idx) => {
-        if (item.score !== prevScore) {
-          currentRank = idx + 1;
-          prevScore = item.score;
-        }
-        item.rank = currentRank;
+        item.rank = idx + 1;
+        currentRank = idx + 1;
       });
       finalArr.reverse();
 
@@ -375,13 +370,14 @@ export function useQuizApp() {
     }
   }, [appState.mode, revealIndex, sortedResults.length]);
 
-  // --- 最終問題の結果画面で正解表示後5秒で自動最終結果へ ---
+  // --- 最終問題の結果画面で正解表示後にfinalTransitionDelay秒で自動最終結果へ ---
   useEffect(() => {
     if (appState.mode !== "result" || !showCorrectAnswer || !isLastQuestion) {
-      setFinalCountdown(5);
+      setFinalCountdown(appState.finalTransitionDelay ?? 5);
       return;
     }
-    setFinalCountdown(5);
+    const delay = appState.finalTransitionDelay ?? 5;
+    setFinalCountdown(delay);
     const interval = setInterval(() => {
       setFinalCountdown((prev) => {
         if (prev <= 1) { clearInterval(interval); return 0; }
@@ -392,10 +388,10 @@ export function useQuizApp() {
       const updates: Record<string, boolean> = {};
       Object.entries(users).forEach(([name]) => { updates[`users/${name}/isReady`] = false; });
       update(ref(db), updates).then(() => setMode("finalResult"));
-    }, 5000);
+    }, delay * 1000);
     return () => { clearInterval(interval); clearTimeout(timer); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appState.mode, showCorrectAnswer, isLastQuestion]);
+  }, [appState.mode, showCorrectAnswer, isLastQuestion, appState.finalTransitionDelay]);
 
   // --- 初期化時の自動キックアウト ---
   useEffect(() => {
@@ -532,6 +528,10 @@ export function useQuizApp() {
         updates[`users/${userId}/score`] = (users[userId]?.score || 0) + points;
         updates[`currentAnswers/${userId}/pointsEarned`] = points;
       });
+      // 全回答者の累計回答時間を加算
+      Object.entries(currentAnswers).forEach(([userId, answerData]) => {
+        updates[`users/${userId}/totalTimeTaken`] = (users[userId]?.totalTimeTaken || 0) + (answerData.timeTaken || 0);
+      });
       if (Object.keys(updates).length > 0) await update(ref(db), updates);
     }
     await update(ref(db, "appState"), {
@@ -553,7 +553,6 @@ export function useQuizApp() {
     lineProfile,
     userName,
     setUserName,
-    isAdmin,
     isJoined,
     appState,
     questions,

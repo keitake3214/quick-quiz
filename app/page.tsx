@@ -1,13 +1,13 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useQuizApp } from "../hooks/useQuizApp";
 import { ref, update } from "firebase/database";
 import { db } from "../lib/firebase";
 
 export default function Home() {
   const {
-    lineProfile, userName, isAdmin, isJoined, appState, questions, users, currentAnswers,
+    lineProfile, userName, isJoined, appState, questions, users, currentAnswers,
     myQuestion, setMyQuestion, timeLeft, hasAnswered, showSaveModal, showResetModal,
     countdownValue, showReadyScreen,
     revealIndex, sortedResults, showCorrectAnswer, finalCountdown, finalRevealIndex, sortedFinalResults,
@@ -18,6 +18,8 @@ export default function Home() {
 
   const isOwner = !!process.env.NEXT_PUBLIC_OWNER_LINE_ID &&
     lineProfile?.userId === process.env.NEXT_PUBLIC_OWNER_LINE_ID;
+
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -187,14 +189,72 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-100 p-4 text-black relative overflow-hidden">
 
-      {/* オーナー専用：右上解散ボタン常設 */}
+      {/* オーナー専用：右上歯車ボタン常設 */}
       {isOwner && (
-        <button
-          onClick={resetGameToRegistration}
-          className="fixed top-4 right-4 z-50 bg-red-500 hover:bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg transition-colors"
-        >
-          🚪 解散
-        </button>
+        <>
+          <button
+            onClick={() => setShowSettingsModal(true)}
+            className="fixed top-4 right-4 z-50 bg-white hover:bg-gray-100 text-gray-700 w-11 h-11 rounded-full shadow-lg flex items-center justify-center text-xl border border-gray-200 transition-colors"
+            title="設定"
+          >
+            ⚙️
+          </button>
+
+          {showSettingsModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowSettingsModal(false)}>
+              <div className="bg-white rounded-2xl shadow-2xl p-6 w-80 mx-4" onClick={(e) => e.stopPropagation()}>
+                <h2 className="text-lg font-bold mb-5 text-gray-800">⚙️ 設定</h2>
+
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">制限時間（秒）</label>
+                    <input
+                      type="number"
+                      min={5}
+                      max={120}
+                      value={appState.timeLimit}
+                      onChange={(e) => update(ref(db, "appState"), { timeLimit: Number(e.target.value) })}
+                      className="w-full border-2 border-gray-300 rounded-lg p-2 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">最終結果までの秒数（秒）</label>
+                    <input
+                      type="number"
+                      min={3}
+                      max={30}
+                      value={appState.finalTransitionDelay ?? 5}
+                      onChange={(e) => update(ref(db, "appState"), { finalTransitionDelay: Number(e.target.value) })}
+                      className="w-full border-2 border-gray-300 rounded-lg p-2 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  {appState.mode === "execution" && (
+                    <button
+                      onClick={() => { showResults(); setShowSettingsModal(false); }}
+                      className="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 rounded-lg font-bold transition-colors"
+                    >
+                      結果発表演出へ
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => { resetGameToRegistration(); setShowSettingsModal(false); }}
+                  className="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-bold text-lg transition-colors"
+                >
+                  🚪 部屋を解散する
+                </button>
+
+                <button
+                  onClick={() => setShowSettingsModal(false)}
+                  className="w-full mt-3 bg-gray-100 hover:bg-gray-200 text-gray-600 py-2 rounded-xl font-bold transition-colors"
+                >
+                  閉じる
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {showSaveModal && (
@@ -208,30 +268,6 @@ export default function Home() {
       )}
 
       <div className="max-w-2xl mx-auto space-y-6">
-
-        {/* 管理者パネル */}
-        {isAdmin && (
-          <div className="bg-white p-4 rounded-lg shadow border-2 border-blue-500">
-            <h2 className="text-xl font-bold mb-4 text-blue-600">管理者 ({askedCount}/{totalQuestions}問消化)</h2>
-            <div className="flex flex-wrap gap-2 mb-4">
-              <button onClick={resetGameToRegistration} className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded text-sm font-bold border border-red-300">
-                部屋を解散する
-              </button>
-              {appState.mode === "execution" && (
-                <button onClick={showResults} className="bg-purple-500 text-white px-4 py-2 rounded font-bold">結果発表演出へ</button>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <label>制限時間(秒):</label>
-              <input
-                type="number"
-                value={appState.timeLimit}
-                onChange={(e) => update(ref(db, "appState"), { timeLimit: Number(e.target.value) })}
-                className="border p-1 w-20"
-              />
-            </div>
-          </div>
-        )}
 
         {/* ロビー（登録モード） */}
         {appState.mode === "registration" && <LobbyUI />}
