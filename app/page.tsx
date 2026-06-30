@@ -89,18 +89,25 @@ export default function Home() {
           </div>
         )}
 
-        {showReadyBtn && (
-          <button
-            onClick={toggleReady}
-            className={`mt-6 w-full py-3 rounded-xl font-bold text-lg transition-all ${
-              isReady
-                ? "bg-green-500 text-white shadow-lg"
-                : "bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200"
-            }`}
-          >
-            {isReady ? "✅ 準備完了！" : "準備できたら押してね"}
-          </button>
-        )}
+        {showReadyBtn && (() => {
+          const questionSaved = !!questions[userName];
+          const canReady = appState.mode !== "registration" || questionSaved;
+          return (
+            <button
+              onClick={toggleReady}
+              disabled={!canReady}
+              className={`mt-6 w-full py-3 rounded-xl font-bold text-lg transition-all ${
+                !canReady
+                  ? "bg-gray-100 text-gray-400 border-2 border-gray-200 cursor-not-allowed"
+                  : isReady
+                    ? "bg-green-500 text-white shadow-lg"
+                    : "bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200"
+              }`}
+            >
+              {!canReady ? "✉️ 先に問題を保存してね" : isReady ? "✅ 準備完了！" : "準備できたら押してね"}
+            </button>
+          );
+        })()}
       </div>
     );
   };

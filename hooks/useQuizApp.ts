@@ -168,7 +168,21 @@ export function useQuizApp() {
     };
   }, []);
 
-  // --- 登録済み問題の復元 ---
+  // --- isJoined確定後に確実にisOnline:trueを書き込む ---
+  useEffect(() => {
+    if (!isJoined || !userName) return;
+    update(ref(db, `users/${userName}`), { isOnline: true });
+    onDisconnect(ref(db, `users/${userName}/isOnline`)).set(false);
+
+    // タブ復帰時にも再度アクティブ化
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        update(ref(db, `users/${userName}`), { isOnline: true });
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [isJoined, userName]);
   useEffect(() => {
     if (isJoined && userName && questions && questions[userName]) {
       setMyQuestion(questions[userName]);
@@ -411,6 +425,8 @@ export function useQuizApp() {
 
   const toggleReady = async () => {
     if (!userName) return;
+    // registrationモードでは問題が保存済みの場合のみ準備完了にできる
+    if (appState.mode === "registration" && !questions[userName]) return;
     const current = users[userName]?.isReady || false;
     await update(ref(db, `users/${userName}`), { isReady: !current });
   };
