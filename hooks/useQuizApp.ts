@@ -79,6 +79,7 @@ export function useQuizApp() {
 
   const [sortedResults, setSortedResults] = useState<any[]>([]);
   const [resultPhase, setResultPhase] = useState<ResultPhase>("idle");
+  const [resultRevealIndex, setResultRevealIndex] = useState(0);
   const [finalCountdown, setFinalCountdown] = useState(5);
 
   const [finalRevealIndex, setFinalRevealIndex] = useState(0);
@@ -320,7 +321,19 @@ export function useQuizApp() {
     }
     const timers: ReturnType<typeof setTimeout>[] = [
       setTimeout(() => setResultPhase("showCorrect"), 0),
-      setTimeout(() => setResultPhase("showRanking"), 2000),
+      setTimeout(() => {
+        setResultPhase("showRanking");
+        setResultRevealIndex(0);
+        const correctArr = Object.entries(currentAnswers)
+          .filter(([, d]) => currentQ && d.choice === currentQ.correctIndex)
+          .sort(([, a], [, b]) => (a.timeTaken || 0) - (b.timeTaken || 0));
+        let idx = 0;
+        const revealInterval = setInterval(() => {
+          idx += 1;
+          setResultRevealIndex(idx);
+          if (idx >= correctArr.length) clearInterval(revealInterval);
+        }, 1500);
+      }, 2000),
     ];
     if (isLastQuestion) {
       const finalDelay = appState.finalTransitionDelay ?? 5;
@@ -553,7 +566,7 @@ export function useQuizApp() {
     lineProfile, userName, setUserName, isJoined, appState, questions, users, currentAnswers,
     myQuestion, setMyQuestion, timeLeft, hasAnswered, showSaveModal, showResetModal,
     countdownValue, showReadyScreen,
-    sortedResults, resultPhase, finalCountdown,
+    sortedResults, resultPhase, resultRevealIndex, finalCountdown,
     finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
     loginWithLine, join, toggleReady, saveQuestion, setMode, resetGameToRegistration,
