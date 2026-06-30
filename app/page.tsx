@@ -449,6 +449,16 @@ export default function Home() {
                 })}
               </div>
             )}
+
+            {/* ロビーに戻るボタン */}
+            {finalRevealIndex >= sortedFinalResults.length && sortedFinalResults.length > 0 && (
+              <button
+                onClick={resetGameToRegistration}
+                className="mt-8 w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-xl font-bold text-lg shadow transition-colors"
+              >
+                🏠 ロビーに戻る
+              </button>
+            )}
           </div>
         )}
       </div>

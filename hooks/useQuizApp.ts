@@ -244,13 +244,26 @@ export function useQuizApp() {
     const onlineUsers = userEntries.filter(([, d]) => d.isOnline !== false);
     if (onlineUsers.length === 0) return;
     const allReady = onlineUsers.every(([, d]) => d.isReady === true);
-    if (allReady) {
-      update(ref(db, "appState"), {
-        mode: "countdown",
-        countdownStartTime: Date.now(),
-      });
+    if (!allReady) return;
+
+    // resultモードかつ最終問題済みならReady?画面なしで直接最終結果へ
+    if (appState.mode === "result") {
+      const questionIds = Object.keys(questions || {});
+      const askedIds = appState.askedQuestions ? Object.keys(appState.askedQuestions) : [];
+      const unaskedIds = questionIds.filter((id) => !askedIds.includes(id));
+      if (unaskedIds.length === 0) {
+        const updates: Record<string, boolean> = {};
+        userEntries.forEach(([name]) => { updates[`users/${name}/isReady`] = false; });
+        update(ref(db), updates).then(() => setMode("finalResult"));
+        return;
+      }
     }
-  }, [users, appState.mode]);
+
+    update(ref(db, "appState"), {
+      mode: "countdown",
+      countdownStartTime: Date.now(),
+    });
+  }, [users, appState.mode, appState.askedQuestions, questions]);
 
   // --- カウントダウン完了後に自動出題または最終結果 ---
   useEffect(() => {
@@ -262,17 +275,7 @@ export function useQuizApp() {
       Object.keys(users).forEach((name) => {
         updates[`users/${name}/isReady`] = false;
       });
-      update(ref(db), updates).then(() => {
-        // 最終問題後は最終結果へ、それ以外は次の問題へ
-        const questionIds = Object.keys(questions || {});
-        const askedIds = appState.askedQuestions ? Object.keys(appState.askedQuestions) : [];
-        const unaskedIds = questionIds.filter((id) => !askedIds.includes(id));
-        if (unaskedIds.length === 0) {
-          setMode("finalResult");
-        } else {
-          nextQuestion();
-        }
-      });
+      update(ref(db), updates).then(() => nextQuestion());
     }, delay);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
