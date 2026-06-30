@@ -495,7 +495,7 @@ export default function Home() {
                     <div className="flex flex-col gap-2">
                       {correctResults.slice(0, resultRevealIndex).reverse().map((result, i) => (
                         <div key={result.name} className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border-2 border-red-200 text-red-700 font-bold animate-slide-in-right">
-                          <span className="text-lg font-black w-6">{correctResults.slice(0, resultRevealIndex).length - i}.</span>
+                          <span className="text-lg font-black w-6">{resultRevealIndex - i}.</span>
                           {users[result.name]?.pictureUrl ? (
                             <img src={users[result.name].pictureUrl} alt={result.name} className="w-8 h-8 rounded-full object-cover" />
                           ) : <span>👤</span>}

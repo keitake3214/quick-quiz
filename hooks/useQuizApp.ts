@@ -326,7 +326,7 @@ export function useQuizApp() {
         setResultRevealIndex(0);
         const correctArr = Object.entries(currentAnswers)
           .filter(([, d]) => currentQ && d.choice === currentQ.correctIndex)
-          .sort(([, a], [, b]) => (a.timeTaken || 0) - (b.timeTaken || 0));
+          .sort(([, a], [, b]) => (b.timeTaken || 0) - (a.timeTaken || 0)); // 遅い順
         let idx = 0;
         const revealInterval = setInterval(() => {
           idx += 1;
@@ -335,6 +335,23 @@ export function useQuizApp() {
         }, 1500);
       }, 2000),
     ];
+
+    // 正解者を遅い順（画面表示順）にソートしてsortedResultsを上書き
+    if (currentQ) {
+      const resultsArray = Object.entries(currentAnswers).map(([name, data]) => ({
+        name,
+        isCorrect: data.choice === currentQ.correctIndex,
+        timeTaken: data.timeTaken || 0,
+        choice: data.choice,
+        pointsEarned: data.pointsEarned || 0,
+      }));
+      // 正解者は遅い順、不正解者は最後にまとめる
+      resultsArray.sort((a, b) => {
+        if (a.isCorrect !== b.isCorrect) return a.isCorrect ? -1 : 1;
+        return b.timeTaken - a.timeTaken; // 正解者内は遅い順
+      });
+      setSortedResults(resultsArray);
+    }
     if (isLastQuestion) {
       const finalDelay = appState.finalTransitionDelay ?? 5;
       timers.push(setTimeout(() => {
