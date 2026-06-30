@@ -1,7 +1,7 @@
 // hooks/useQuizApp.ts
 import { useState, useEffect, useRef } from "react";
 import { db, auth, signInAnonymously } from "../lib/firebase";
-import { ref, onValue, set, update, get, remove, onDisconnect } from "firebase/database";
+import { ref, onValue, set, update, get, remove, onDisconnect, runTransaction } from "firebase/database";
 
 // --- 型定義 ---
 export type AppState = {
@@ -237,13 +237,29 @@ export function useQuizApp() {
       const askedIds = appState.askedQuestions ? Object.keys(appState.askedQuestions) : [];
       const unaskedIds = questionIds.filter((id) => !askedIds.includes(id));
       if (unaskedIds.length === 0) {
-        const updates: Record<string, boolean> = {};
-        userEntries.forEach(([name]) => { updates[`users/${name}/isReady`] = false; });
-        update(ref(db), updates).then(() => setMode("finalResult"));
+        // トランザクションで一度だけfinalResultに遷移
+        runTransaction(ref(db, "appState/mode"), (currentMode) => {
+          if (currentMode === "result") return "finalResult";
+          return; // 既に変わっていたらキャンセル
+        }).then((result) => {
+          if (result.committed) {
+            const updates: Record<string, boolean> = {};
+            userEntries.forEach(([name]) => { updates[`users/${name}/isReady`] = false; });
+            update(ref(db), updates);
+          }
+        });
         return;
       }
     }
-    update(ref(db, "appState"), { mode: "countdown", countdownStartTime: Date.now() });
+    // トランザクションでcountdownに1回だけ遷移（countdownStartTimeを固定化）
+    runTransaction(ref(db, "appState/mode"), (currentMode) => {
+      if (currentMode === "registration" || currentMode === "result") return "countdown";
+      return; // 既に別のモードならキャンセル
+    }).then((result) => {
+      if (result.committed) {
+        update(ref(db, "appState"), { countdownStartTime: Date.now() });
+      }
+    });
   }, [users, appState.mode, appState.askedQuestions, questions]);
 
   // --- カウントダウン完了後に自動出題 ---
@@ -252,9 +268,16 @@ export function useQuizApp() {
     const remaining = 4000 - (Date.now() - appState.countdownStartTime);
     const delay = Math.max(remaining, 0);
     const timer = setTimeout(() => {
-      const updates: Record<string, boolean> = {};
-      Object.keys(users).forEach((name) => { updates[`users/${name}/isReady`] = false; });
-      update(ref(db), updates).then(() => nextQuestion());
+      // トランザクションでcountdownモードのクライアントのみ処理
+      runTransaction(ref(db, "appState/mode"), (currentMode) => {
+        if (currentMode === "countdown") return "executing_transition";
+        return;
+      }).then((result) => {
+        if (!result.committed) return;
+        const updates: Record<string, boolean> = {};
+        Object.keys(users).forEach((name) => { updates[`users/${name}/isReady`] = false; });
+        update(ref(db), updates).then(() => nextQuestion());
+      });
     }, delay);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
