@@ -495,7 +495,7 @@ export default function Home() {
                   ) : (
                     <div className="flex flex-col gap-2">
                       {correctResults.slice(0, resultRevealIndex).reverse().map((result) => {
-                        const rank = correctResults.indexOf(result) + 1;
+                        const rank = correctResults.length - correctResults.indexOf(result);
                         let medal = "";
                         if (rank === 1) medal = "🥇 ";
                         else if (rank === 2) medal = "🥈 ";
