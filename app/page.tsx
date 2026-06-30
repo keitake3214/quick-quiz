@@ -46,7 +46,7 @@ export default function Home() {
         {userEntries.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-2">待機中のメンバーはいません</p>
         ) : (
-          <div className="flex gap-4 overflow-x-auto pb-2 px-1">
+          <div className="flex gap-4 overflow-x-auto pb-2 pt-2 px-1">
             {[...userEntries]
               .sort(([, a], [, b]) => {
                 // 準備未完を前列に、準備完了を後列に
