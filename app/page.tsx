@@ -482,6 +482,7 @@ export default function Home() {
               {["showCorrect", "showRanking", "showFinalCountdown"].includes(resultPhase) && myResult && !myResult.isCorrect && (
                 <div className="mb-6 p-3 bg-gray-100 border-2 border-gray-300 rounded-xl text-gray-600">
                   <p className="font-bold">あなたの回答: 「{currentQ?.choices[myResult.choice]}」 — ❌ 不正解</p>
+                  <p className="text-sm mt-1">現在の合計: {users[userName]?.score || 0} pt</p>
                 </div>
               )}
 
