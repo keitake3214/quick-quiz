@@ -354,6 +354,10 @@ export function useQuizApp() {
     }
     if (isLastQuestion) {
       const finalDelay = appState.finalTransitionDelay ?? 5;
+      const correctCount = Object.entries(currentAnswers)
+        .filter(([, d]) => currentQ && d.choice === currentQ.correctIndex).length;
+      // showRanking開始(2000ms) + ランキングアニメーション完了(1500ms×人数) + 余裕(500ms)
+      const t5 = 2000 + (correctCount * 1500) + 500;
       timers.push(setTimeout(() => {
         setResultPhase("showFinalCountdown");
         setFinalCountdown(finalDelay);
@@ -369,7 +373,7 @@ export function useQuizApp() {
           Object.entries(users).forEach(([name]) => { updates[`users/${name}/isReady`] = false; });
           update(ref(db), updates).then(() => setMode("finalResult"));
         }, finalDelay * 1000);
-      }, 4000));
+      }, t5));
     }
     return () => timers.forEach(clearTimeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
