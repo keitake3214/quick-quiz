@@ -473,11 +473,9 @@ export default function Home() {
         {appState.mode === "result" && appState.currentQuestionId && (() => {
           const currentQ = questions[appState.currentQuestionId];
           const correctIndex = currentQ?.correctIndex ?? -1;
-          const correctText = currentQ?.choices[correctIndex] ?? "";
-          const showAnswers = ["showAnswers", "showCorrectModal", "showCorrect", "showRanking", "showFinalCountdown"].includes(resultPhase);
-          const showCorrect = ["showCorrect", "showRanking", "showFinalCountdown"].includes(resultPhase);
           const showRanking = ["showRanking", "showFinalCountdown"].includes(resultPhase);
           const correctResults = sortedResults.filter((r) => r.isCorrect);
+          const myResult = sortedResults.find((r) => r.name === userName);
 
           return (
             <div className="bg-white p-6 rounded-lg shadow text-center overflow-hidden relative">
@@ -502,54 +500,30 @@ export default function Home() {
 
               {/* 問題文 */}
               <p className="text-sm text-gray-400 mb-1">問題</p>
-              <h3 className="text-xl font-bold mb-6 text-gray-800">
+              <h3 className="text-xl font-bold mb-4 text-gray-800">
                 {appState.currentQuestionText || currentQ?.text}
               </h3>
 
-              {/* 選択肢と回答者アイコン */}
-              <div className="grid grid-cols-1 gap-3 mb-6">
-                {currentQ?.choices.map((choice, idx) => {
-                  const isCorrectChoice = idx === correctIndex;
-                  const greyOut = showCorrect && !isCorrectChoice;
-                  const answerers = shuffledAnswers.filter((a) => a.choice === idx);
-                  return (
-                    <div
-                      key={idx}
-                      className={`p-3 rounded-xl border-2 text-left transition-all duration-500 ${
-                        greyOut
-                          ? "border-gray-200 bg-gray-100 opacity-40"
-                          : showCorrect && isCorrectChoice
-                            ? "border-yellow-400 bg-yellow-50"
-                            : "border-gray-200 bg-gray-50"
-                      }`}
-                    >
-                      <p className={`font-bold text-lg mb-2 ${
-                        greyOut ? "text-gray-400" : showCorrect && isCorrectChoice ? "text-yellow-700" : "text-gray-800"
-                      }`}>
-                        {showCorrect && isCorrectChoice && "✅ "}{choice}
-                      </p>
-                      {showAnswers && answerers.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {answerers.map(({ name }) => (
-                            <div key={name} className="flex flex-col items-center gap-0.5 w-12">
-                              {users[name]?.pictureUrl ? (
-                                <img src={users[name].pictureUrl} alt={name} className="w-8 h-8 rounded-full object-cover border-2 border-white shadow" />
-                              ) : (
-                                <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-sm">👤</div>
-                              )}
-                              <span className="text-xs text-gray-600 text-center break-all leading-tight line-clamp-2">{name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              {/* 正解表示（showCorrect以降） */}
+              {["showCorrect", "showRanking", "showFinalCountdown"].includes(resultPhase) && currentQ && (
+                <div className="mb-6 p-4 bg-yellow-50 border-2 border-yellow-400 rounded-xl">
+                  <p className="text-sm text-gray-500 mb-1">正解</p>
+                  <p className="text-2xl font-extrabold text-yellow-700">
+                    {currentQ.choices[correctIndex]}
+                  </p>
+                </div>
+              )}
+
+              {/* 自分の結果（不正解時のみ表示） */}
+              {["showCorrect", "showRanking", "showFinalCountdown"].includes(resultPhase) && myResult && !myResult.isCorrect && (
+                <div className="mb-6 p-3 bg-gray-100 border-2 border-gray-300 rounded-xl text-gray-600">
+                  <p className="font-bold">あなたの回答: 「{currentQ?.choices[myResult.choice]}」 — ❌ 不正解</p>
+                </div>
+              )}
 
               {/* ランキング（正解者のみ） */}
               {showRanking && (
-                <div className="mt-4">
+                <div className="mt-2">
                   <h3 className="text-lg font-bold mb-3 text-gray-500">今回の正解者</h3>
                   {correctResults.length === 0 ? (
                     <p className="text-gray-400">正解者はいませんでした</p>
@@ -568,6 +542,13 @@ export default function Home() {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* 正解者が自分の場合はポイント表示 */}
+              {showRanking && myResult?.isCorrect && (
+                <div className="mt-3 text-right text-sm font-bold text-red-700">
+                  今回の獲得: +{myResult.pointsEarned || 0} pt ／ 現在の合計: {users[userName]?.score || 0} pt
                 </div>
               )}
 
