@@ -528,9 +528,11 @@ export function useQuizApp() {
         updates[`users/${userId}/score`] = (users[userId]?.score || 0) + points;
         updates[`currentAnswers/${userId}/pointsEarned`] = points;
       });
-      // 全回答者の累計回答時間を加算
+      // 全回答者の累計回答時間を加算（正解は実時間、不正解は制限時間を加算）
       Object.entries(currentAnswers).forEach(([userId, answerData]) => {
-        updates[`users/${userId}/totalTimeTaken`] = (users[userId]?.totalTimeTaken || 0) + (answerData.timeTaken || 0);
+        const isCorrect = answerData.choice === currentQ.correctIndex;
+        const addTime = isCorrect ? (answerData.timeTaken || 0) : (appState.timeLimit || 20);
+        updates[`users/${userId}/totalTimeTaken`] = (users[userId]?.totalTimeTaken || 0) + addTime;
       });
       if (Object.keys(updates).length > 0) await update(ref(db), updates);
     }

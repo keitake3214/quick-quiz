@@ -525,7 +525,10 @@ export default function Home() {
                         )}
                         <span>{medal}{item.rank}位: {item.name}</span>
                       </div>
-                      <span className="text-blue-600 font-extrabold text-right">{item.score} pt</span>
+                      <div className="text-right shrink-0">
+                        <p className="text-blue-600 font-extrabold">{item.score} pt</p>
+                        <p className="text-xs text-gray-400 font-normal">累計 {item.totalTimeTaken.toFixed(1)} 秒</p>
+                      </div>
                     </div>
                   );
                 })}
