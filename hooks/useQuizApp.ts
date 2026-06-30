@@ -1,7 +1,7 @@
 // hooks/useQuizApp.ts
 import { useState, useEffect, useRef } from "react";
 import { db, auth, signInAnonymously } from "../lib/firebase";
-import { ref, onValue, set, update, get, onDisconnect } from "firebase/database";
+import { ref, onValue, set, update, get, remove, onDisconnect } from "firebase/database";
 
 // --- 型定義 ---
 export type AppState = {
@@ -425,18 +425,29 @@ export function useQuizApp() {
   const setMode = async (mode: AppState["mode"]) => update(ref(db, "appState"), { mode });
 
   const resetGameToRegistration = async () => {
-    await update(ref(db), {
-      "appState/mode": "registration",
-      "appState/currentQuestionId": null,
-      "appState/askedQuestions": null,
-      "appState/countdownStartTime": null,
-      users: null,
-      questions: null,
-      currentAnswers: null,
-    });
+    // updateでnullを指定する方法は信頼性が低いため、各ノードを個別にremoveする
+    await Promise.all([
+      remove(ref(db, "users")),
+      remove(ref(db, "questions")),
+      remove(ref(db, "currentAnswers")),
+      update(ref(db, "appState"), {
+        mode: "registration",
+        currentQuestionId: null,
+        askedQuestions: null,
+        countdownStartTime: null,
+      }),
+    ]);
     setShowResetModal(false);
     setTimeout(() => setShowResetModal(true), 50);
     setTimeout(() => setShowResetModal(false), 2500);
+  };
+
+  const removeUser = async (targetName: string) => {
+    await Promise.all([
+      remove(ref(db, `users/${targetName}`)),
+      remove(ref(db, `questions/${targetName}`)),
+      remove(ref(db, `currentAnswers/${targetName}`)),
+    ]);
   };
 
   const nextQuestion = async () => {
@@ -519,6 +530,7 @@ export function useQuizApp() {
     saveQuestion,
     setMode,
     resetGameToRegistration,
+    removeUser,
     nextQuestion,
     showResults,
     submitAnswer,

@@ -13,7 +13,7 @@ export default function Home() {
     revealIndex, sortedResults, showCorrectAnswer, finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
     loginWithLine, join, toggleReady, saveQuestion, setMode, resetGameToRegistration,
-    nextQuestion, showResults, submitAnswer
+    removeUser, nextQuestion, showResults, submitAnswer
   } = useQuizApp();
 
   const isOwner = !!process.env.NEXT_PUBLIC_OWNER_LINE_ID &&
@@ -65,6 +65,16 @@ export default function Home() {
                       <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400 font-bold">
                         💤
                       </div>
+                    )}
+                    {/* オーナー専用：自分以外のユーザーを強制削除ボタン */}
+                    {isOwner && name !== userName && (
+                      <button
+                        onClick={() => removeUser(name)}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs font-bold flex items-center justify-center shadow-md leading-none"
+                        title={`${name}を削除`}
+                      >
+                        −
+                      </button>
                     )}
                   </div>
                   <span className={`text-xs font-medium text-center break-all leading-tight ${!isOnline ? "text-gray-400" : "text-gray-700"}`}>
