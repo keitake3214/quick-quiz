@@ -318,7 +318,38 @@ export default function Home() {
             {timeLeft === 0 ? (
               <div className="text-2xl font-bold py-10">タイムアップ！結果発表をお待ちください...</div>
             ) : appState.currentQuestionId === userName ? (
-              <div className="text-xl py-10">あなたの問題が出題中です！<br />他の人の回答を待ちましょう。</div>
+              // 出題者画面：問題文・選択肢・回答者リアルタイム表示
+              <>
+                <h2 className="text-2xl font-bold mb-6">{questions[appState.currentQuestionId]?.text}</h2>
+                <div className="grid grid-cols-1 gap-4">
+                  {questions[appState.currentQuestionId]?.choices.map((choice, idx) => {
+                    // この選択肢に回答した人を時刻順に並べる
+                    const answerers = Object.entries(currentAnswers)
+                      .filter(([, d]) => d.choice === idx)
+                      .sort(([, a], [, b]) => (a.timeTaken || 0) - (b.timeTaken || 0));
+                    return (
+                      <div key={idx} className="relative p-4 rounded-xl border-2 border-gray-200 bg-gray-50 text-left">
+                        <p className="text-lg font-bold text-gray-800 mb-2">{choice}</p>
+                        {answerers.length > 0 && (
+                          <div className="flex flex-wrap gap-3 mt-2">
+                            {answerers.map(([name]) => (
+                              <div key={name} className="flex flex-col items-center gap-0.5">
+                                {users[name]?.pictureUrl ? (
+                                  <img src={users[name].pictureUrl} alt={name} className="w-8 h-8 rounded-full object-cover border-2 border-white shadow" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-sm">👤</div>
+                                )}
+                                <span className="text-xs text-gray-600 text-center max-w-[3rem] truncate">{name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="mt-4 text-sm text-gray-400">あなたの問題が出題中！回答を見守ろう。</p>
+              </>
             ) : (
               <>
                 <h2 className="text-2xl font-bold mb-8">{questions[appState.currentQuestionId]?.text}</h2>
