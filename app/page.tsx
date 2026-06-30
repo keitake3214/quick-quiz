@@ -35,7 +35,7 @@ export default function Home() {
 
     return (
       <div className="p-4 bg-white rounded-xl shadow text-left">
-        <h4 className="font-bold mb-4 text-gray-700 flex justify-between items-center">
+        <h4 className="font-bold mb-4 text-gray-700 flex items-center gap-2">
           <span>{appState.mode === "result" ? "次の問題への準備" : "ロビー"}</span>
           <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">{userEntries.length} 人</span>
         </h4>
