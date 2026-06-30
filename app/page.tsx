@@ -105,7 +105,7 @@ export default function Home() {
                     : "bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200"
               }`}
             >
-              {!canReady ? "先に問題を保存してね" : isReady ? "✅ 準備完了！" : "準備できたら押してね"}
+              {!canReady ? "先に問題を登録してください" : isReady ? "✅ 準備完了！" : "準備完了"}
             </button>
           );
         })()}
@@ -349,7 +349,7 @@ export default function Home() {
                     );
                   })}
                 </div>
-                <p className="mt-4 text-sm text-gray-400">あなたの問題が出題中！回答を見守ろう。</p>
+                <p className="mt-4 text-sm text-gray-400">あなたの問題が出題中。</p>
               </>
             ) : (
               <>
@@ -463,7 +463,6 @@ export default function Home() {
         {appState.mode === "finalResult" && (
           <div className="bg-white p-6 rounded-lg shadow text-center overflow-hidden">
             <h2 className="text-4xl font-extrabold mb-8 text-amber-500 animate-bounce">🏆 最終結果発表 🏆</h2>
-            <p className="text-md text-gray-500 mb-6">全問終了！これまでの合計成績ランキングです！</p>
 
             {sortedFinalResults.length === 0 ? (
               <p>データがありません。</p>
@@ -503,7 +502,7 @@ export default function Home() {
                 onClick={resetGameToRegistration}
                 className="mt-8 w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-xl font-bold text-lg shadow transition-colors"
               >
-                🏠 ロビーに戻る
+                ロビーに戻る
               </button>
             )}
           </div>

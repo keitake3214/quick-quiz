@@ -331,7 +331,7 @@ export function useQuizApp() {
       finalInitRef.current = true;
       const finalArr = Object.entries(users || {}).map(([name, data]) => ({
         name,
-        score: data.score,
+        score: data.score ?? 0,
         rank: 0,
         pictureUrl: data.pictureUrl || "",
       }));
