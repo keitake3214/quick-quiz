@@ -285,7 +285,15 @@ export function useQuizApp() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appState.mode, appState.countdownStartTime]);
 
-  // --- 新しい問題が出た時のリセット ---
+  // --- resultモードに移行したらテストユーザーのisReadyを自動trueに ---
+  useEffect(() => {
+    if (appState.mode !== "result") return;
+    const testUsers = Object.keys(users).filter((name) => name.startsWith("テスト"));
+    if (testUsers.length === 0) return;
+    const updates: Record<string, boolean> = {};
+    testUsers.forEach((name) => { updates[`users/${name}/isReady`] = true; });
+    update(ref(db), updates);
+  }, [appState.mode, users]);
   useEffect(() => {
     setHasAnswered(false);
     setLocalStartTime(Date.now());
