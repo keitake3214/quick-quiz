@@ -388,6 +388,8 @@ export function useQuizApp() {
   useEffect(() => {
     if (appState.mode === "finalResult") {
       if (finalInitRef.current) return;
+      // usersデータが揃ってから実行（空の場合は次のuseEffect発火を待つ）
+      if (Object.keys(users).length === 0) return;
       finalInitRef.current = true;
       const finalArr = Object.entries(users || {}).map(([name, data]) => ({
         name,
