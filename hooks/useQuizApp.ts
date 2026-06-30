@@ -260,7 +260,7 @@ export function useQuizApp() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appState.mode, appState.countdownStartTime]);
 
-  // --- 出題開始時にテストユーザーを自動回答 ---
+  // --- 出題開始時にテストユーザーを自動回答（未回答の場合のみ） ---
   useEffect(() => {
     if (appState.mode !== "execution" || !appState.currentQuestionId) return;
     const testUsers = Object.keys(users).filter((name) => name.startsWith("テスト"));
@@ -272,6 +272,9 @@ export function useQuizApp() {
       return setTimeout(async () => {
         const snap = await get(ref(db, "appState/mode"));
         if (snap.val() !== "execution") return;
+        // 既に回答済みならスキップ
+        const answerSnap = await get(ref(db, `currentAnswers/${name}`));
+        if (answerSnap.exists()) return;
         await set(ref(db, `currentAnswers/${name}`), {
           choice: randomChoice,
           timeTaken: parseFloat((randomDelay / 1000).toFixed(3)),
@@ -383,7 +386,8 @@ export function useQuizApp() {
 
   // --- 最終結果アニメーション ---
   useEffect(() => {
-    if (appState.mode === "finalResult" && !finalInitRef.current) {
+    if (appState.mode === "finalResult") {
+      if (finalInitRef.current) return;
       finalInitRef.current = true;
       const finalArr = Object.entries(users || {}).map(([name, data]) => ({
         name,
@@ -406,8 +410,10 @@ export function useQuizApp() {
         );
       }, 1500);
       return () => clearInterval(interval);
-    } else if (appState.mode !== "finalResult") {
+    } else {
       finalInitRef.current = false;
+      setSortedFinalResults([]);
+      setFinalRevealIndex(0);
     }
   }, [appState.mode, users]);
 
@@ -509,8 +515,9 @@ export function useQuizApp() {
         score: 0, totalTimeTaken: 0, isOnline: true, isReady: true,
         lineUserId: `test_user_${i}`, displayName: name, pictureUrl: "",
       };
+      // 問題キーはユーザー名（name）で登録することで各テストユーザーが別筏の問題を持つ
       updates[`questions/${name}`] = {
-        text: "テスト用問題",
+        text: `テスト用問題${i}`,
         choices: ["テスト選択肢1", "テスト選択肢2", "テスト選択肢3", "テスト選択肢4"],
         correctIndex: Math.floor(Math.random() * 4),
       };
