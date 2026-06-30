@@ -63,7 +63,7 @@ export default function Home() {
                     )}
                     {!isOnline && (
                       <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400 font-bold">
-                        💤
+                        
                       </div>
                     )}
                     {/* オーナー専用：自分以外のユーザーを強制削除ボタン */}
@@ -104,7 +104,7 @@ export default function Home() {
                     : "bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200"
               }`}
             >
-              {!canReady ? "✉️ 先に問題を保存してね" : isReady ? "✅ 準備完了！" : "準備できたら押してね"}
+              {!canReady ? "先に問題を保存してね" : isReady ? "✅ 準備完了！" : "準備できたら押してね"}
             </button>
           );
         })()}
@@ -239,7 +239,7 @@ export default function Home() {
         {appState.mode === "registration" && (
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="text-2xl font-bold mb-2">問題を作成する</h2>
-            <p className="mb-6 text-gray-500 text-sm">クイズを1問作成してください。何度でも編集・上書き保存できます。</p>
+            <p className="mb-6 text-gray-500 text-sm">問題を作成してください。何度でも編集・上書き保存できます。</p>
 
             <textarea
               ref={textareaRef}
