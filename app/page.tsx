@@ -531,13 +531,13 @@ export default function Home() {
                       {showAnswers && answerers.length > 0 && (
                         <div className="flex flex-wrap gap-2">
                           {answerers.map(({ name }) => (
-                            <div key={name} className="flex flex-col items-center gap-0.5">
+                            <div key={name} className="flex flex-col items-center gap-0.5 w-12">
                               {users[name]?.pictureUrl ? (
                                 <img src={users[name].pictureUrl} alt={name} className="w-8 h-8 rounded-full object-cover border-2 border-white shadow" />
                               ) : (
                                 <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-sm">👤</div>
                               )}
-                              <span className="text-xs text-gray-600 text-center max-w-[3rem] truncate">{name}</span>
+                              <span className="text-xs text-gray-600 text-center break-all leading-tight line-clamp-2">{name}</span>
                             </div>
                           ))}
                         </div>
