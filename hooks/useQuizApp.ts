@@ -187,6 +187,14 @@ export function useQuizApp() {
     }
   }, [appState.mode, appState.currentQuestionId, appState.questionStartTime, appState.timeLimit]);
 
+  // --- タイムアップ後2秒で自動結果発表 ---
+  useEffect(() => {
+    if (appState.mode !== "execution" || timeLeft !== 0) return;
+    const timer = setTimeout(() => showResults(), 2000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appState.mode, timeLeft]);
+
   // --- カウントダウン処理 ---
   // countdownStartTime から経過秒数で Ready?(0秒目) → 3(1秒目) → 2(2秒目) → 1(3秒目) → 出題(4秒目)
   useEffect(() => {
@@ -214,9 +222,9 @@ export function useQuizApp() {
     }
   }, [appState.mode, appState.countdownStartTime]);
 
-  // --- 全員準備完了チェック（自動でcountdownへ移行） ---
+  // --- 全員準備完了チェック（registrationまたはresultからcountdownへ移行） ---
   useEffect(() => {
-    if (appState.mode !== "registration") return;
+    if (appState.mode !== "registration" && appState.mode !== "result") return;
     const userEntries = Object.entries(users);
     if (userEntries.length === 0) return;
     const onlineUsers = userEntries.filter(([, d]) => d.isOnline !== false);
@@ -230,18 +238,27 @@ export function useQuizApp() {
     }
   }, [users, appState.mode]);
 
-  // --- カウントダウン完了後に自動出題 ---
+  // --- カウントダウン完了後に自動出題または最終結果 ---
   useEffect(() => {
     if (appState.mode !== "countdown" || !appState.countdownStartTime) return;
     const remaining = 4000 - (Date.now() - appState.countdownStartTime);
     const delay = Math.max(remaining, 0);
     const timer = setTimeout(() => {
-      // 全ユーザーのisReadyをリセット
-      const updates: Record<string, boolean | null> = {};
+      const updates: Record<string, boolean> = {};
       Object.keys(users).forEach((name) => {
-        updates[`users/${name}/isReady`] = false as boolean;
+        updates[`users/${name}/isReady`] = false;
       });
-      update(ref(db), updates).then(() => nextQuestion());
+      update(ref(db), updates).then(() => {
+        // 最終問題後は最終結果へ、それ以外は次の問題へ
+        const questionIds = Object.keys(questions || {});
+        const askedIds = appState.askedQuestions ? Object.keys(appState.askedQuestions) : [];
+        const unaskedIds = questionIds.filter((id) => !askedIds.includes(id));
+        if (unaskedIds.length === 0) {
+          setMode("finalResult");
+        } else {
+          nextQuestion();
+        }
+      });
     }, delay);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps

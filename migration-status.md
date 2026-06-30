@@ -9,17 +9,16 @@
 - Ready? → 3秒カウントダウン → 自動出題フロー
 - 出題画面に出題者LINEアイコン表示
 - 結果発表・最終結果にLINEアイコン表示
-- UserData型にlineUserId/displayName/pictureUrl追加
-- firebase.ts をクライアントサイドのみlazy初期化に変更
-- layout.tsx のGoogle Fonts削除（オフライン環境対応）
-- next.config.ts にLINE CDN画像ドメイン許可追加
-- .env.local.example 作成（LINE_CHANNEL_ID, LINE_CHANNEL_SECRET等）
+- join時のundefinedフィールドエラー修正
+- タイムアップ後2秒で自動結果発表遷移
+- 結果発表画面に準備完了ロビー追加（全員Readyで次の問題へ）
+- 最後の問題後は最終結果へ自動遷移
+- NEXT_PUBLIC_OWNER_LINE_IDによるオーナー判定・右上解散ボタン常設
 - ビルド成功確認
 
 ## [現在のエラー]
 - なし
 
 ## [未完了のタスク]
-- .env.local に LINE_CHANNEL_ID, LINE_CHANNEL_SECRET, LINE_REDIRECT_URI を設定する（手動作業）
-- LINE DevelopersコンソールでコールバックURL登録: /api/auth/line-callback
+- Vercelに NEXT_PUBLIC_OWNER_LINE_ID を設定する（手動作業）
 - 動作確認・テスト

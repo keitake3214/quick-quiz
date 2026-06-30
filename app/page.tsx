@@ -16,6 +16,9 @@ export default function Home() {
     nextQuestion, showResults, submitAnswer
   } = useQuizApp();
 
+  const isOwner = !!process.env.NEXT_PUBLIC_OWNER_LINE_ID &&
+    lineProfile?.userId === process.env.NEXT_PUBLIC_OWNER_LINE_ID;
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     if (textareaRef.current) {
@@ -24,16 +27,16 @@ export default function Home() {
     }
   }, [myQuestion.text, appState.mode]);
 
-  // --- ロビーコンポーネント ---
+  // --- ロビーコンポーネント（登録モード・結果モード共用） ---
   const LobbyUI = () => {
     const userEntries = Object.entries(users || {});
-    const myData = users[userName];
-    const isReady = myData?.isReady || false;
+    const isReady = users[userName]?.isReady || false;
+    const showReadyBtn = appState.mode === "registration" || appState.mode === "result";
 
     return (
       <div className="p-4 bg-white rounded-xl shadow text-left">
         <h4 className="font-bold mb-4 text-gray-700 flex justify-between items-center">
-          <span>ロビー</span>
+          <span>{appState.mode === "result" ? "次の問題への準備" : "ロビー"}</span>
           <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">{userEntries.length} 人</span>
         </h4>
 
@@ -76,8 +79,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* 準備完了ボタン（登録モード時のみ） */}
-        {appState.mode === "registration" && (
+        {showReadyBtn && (
           <button
             onClick={toggleReady}
             className={`mt-6 w-full py-3 rounded-xl font-bold text-lg transition-all ${
@@ -114,7 +116,7 @@ export default function Home() {
     );
   }
 
-  // --- UI: 参加ボタン画面（LINEログイン済みだがまだ未参加） ---
+  // --- UI: 参加ボタン画面 ---
   if (!isJoined) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
@@ -150,7 +152,7 @@ export default function Home() {
   if (appState.mode === "countdown") {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white">
-        {showReadyScreen && countdownValue >= 3 ? (
+        {showReadyScreen ? (
           <div className="text-center animate-bounce">
             <p className="text-6xl font-extrabold tracking-widest text-yellow-400">Ready?</p>
           </div>
@@ -167,6 +169,16 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-100 p-4 text-black relative overflow-hidden">
 
+      {/* オーナー専用：右上解散ボタン常設 */}
+      {isOwner && (
+        <button
+          onClick={resetGameToRegistration}
+          className="fixed top-4 right-4 z-50 bg-red-500 hover:bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg transition-colors"
+        >
+          🚪 解散
+        </button>
+      )}
+
       {showSaveModal && (
         <div className="fixed top-6 right-6 z-50 bg-green-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-green-400 animate-toast">
           <span className="text-2xl">✨</span>
@@ -179,7 +191,7 @@ export default function Home() {
 
       <div className="max-w-2xl mx-auto space-y-6">
 
-        {/* 管理者パネル（出題ボタン・問題作成なし） */}
+        {/* 管理者パネル */}
         {isAdmin && (
           <div className="bg-white p-4 rounded-lg shadow border-2 border-blue-500">
             <h2 className="text-xl font-bold mb-4 text-blue-600">管理者 ({askedCount}/{totalQuestions}問消化)</h2>
@@ -187,19 +199,8 @@ export default function Home() {
               <button onClick={resetGameToRegistration} className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded text-sm font-bold border border-red-300">
                 部屋を解散する
               </button>
-
-              {appState.mode === "result" && isLastQuestion && (
-                <button onClick={() => setMode("finalResult")} className="bg-amber-500 text-white px-6 py-2 rounded-xl font-extrabold shadow animate-pulse">
-                  🏆最終結果🏆
-                </button>
-              )}
-
               {appState.mode === "execution" && (
                 <button onClick={showResults} className="bg-purple-500 text-white px-4 py-2 rounded font-bold">結果発表演出へ</button>
-              )}
-
-              {appState.mode === "result" && !isLastQuestion && (
-                <button onClick={nextQuestion} className="bg-green-500 text-white px-4 py-2 rounded font-bold">次の問題へ</button>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -284,7 +285,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* 出題者情報 */}
             <div className="flex items-center justify-center gap-2 mb-4">
               {users[appState.currentQuestionId]?.pictureUrl ? (
                 <img
@@ -332,7 +332,7 @@ export default function Home() {
         {/* 各問の結果発表 */}
         {appState.mode === "result" && appState.currentQuestionId && (
           <div className="bg-white p-6 rounded-lg shadow text-center overflow-hidden">
-            {showCorrectAnswer && sortedResults.length > 0 && (
+            {showCorrectAnswer && (
               <div className="mb-8 p-4 bg-yellow-100 border-4 border-yellow-400 rounded-lg animate-pulse">
                 <h2 className="text-xl font-bold text-gray-700 mb-2">正解は...</h2>
                 <p className="text-4xl font-extrabold text-red-600">
@@ -353,7 +353,7 @@ export default function Home() {
                   </p>
                 </div>
               ) : (
-                <p>回答者がいませんでした。</p>
+                <p>集計中...</p>
               )
             ) : (
               <div className="flex flex-col gap-2">
@@ -383,6 +383,13 @@ export default function Home() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* 正解表示後に次の問題への準備ロビーを表示 */}
+            {showCorrectAnswer && (
+              <div className="mt-8">
+                <LobbyUI />
               </div>
             )}
           </div>
