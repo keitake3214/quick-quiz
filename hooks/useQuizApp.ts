@@ -8,6 +8,7 @@ export type AppState = {
   mode: "registration" | "countdown" | "execution" | "result" | "finalResult";
   timeLimit: number;
   finalTransitionDelay: number;
+  rankingDisplayTime: number;
   currentQuestionId: string | null;
   currentQuestionText?: string;
   questionStartTime: number;
@@ -55,6 +56,7 @@ export function useQuizApp() {
     mode: "registration",
     timeLimit: 20,
     finalTransitionDelay: 5,
+    rankingDisplayTime: 5,
     currentQuestionId: null,
     questionStartTime: 0,
     askedQuestions: {},
@@ -356,8 +358,8 @@ export function useQuizApp() {
       const finalDelay = appState.finalTransitionDelay ?? 5;
       const correctCount = Object.entries(currentAnswers)
         .filter(([, d]) => currentQ && d.choice === currentQ.correctIndex).length;
-      // showRanking開始(2000ms) + ランキングアニメーション完了(1500ms×人数) + 余裕(500ms)
-      const t5 = 2000 + (correctCount * 1500) + 500;
+      // showRanking開始(2000ms) + ランキングアニメーション完了(1500ms×人数) + ランキング表示時間(rankingDisplayTime)
+      const t5 = 2000 + (correctCount * 1500) + ((appState.rankingDisplayTime ?? 5) * 1000);
       timers.push(setTimeout(() => {
         setResultPhase("showFinalCountdown");
         setFinalCountdown(finalDelay);

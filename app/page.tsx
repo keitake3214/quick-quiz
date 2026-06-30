@@ -235,6 +235,15 @@ export default function Home() {
                       className="w-full border-2 border-gray-300 rounded-lg p-2 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">ランキング表示時間（秒）</label>
+                    <input
+                      type="number" min={1} max={30}
+                      value={appState.rankingDisplayTime ?? 5}
+                      onChange={(e) => update(ref(db, "appState"), { rankingDisplayTime: Number(e.target.value) })}
+                      className="w-full border-2 border-gray-300 rounded-lg p-2 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
                   {appState.mode === "execution" && (
                     <button
                       onClick={() => { showResults(); setShowSettingsModal(false); }}
