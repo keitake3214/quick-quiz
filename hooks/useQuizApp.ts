@@ -174,14 +174,19 @@ export function useQuizApp() {
     update(ref(db, `users/${userName}`), { isOnline: true });
     onDisconnect(ref(db, `users/${userName}/isOnline`)).set(false);
 
-    // タブ復帰時にも再度アクティブ化
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        update(ref(db, `users/${userName}`), { isOnline: true });
-      }
-    };
+    const goOnline = () => update(ref(db, `users/${userName}`), { isOnline: true });
+    const handleVisibility = () => { if (document.visibilityState === "visible") goOnline(); };
+
+    // iOS Safariでは visibilitychange だけでは不安定なため、三種類を監視する
     document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", goOnline);
+    window.addEventListener("pageshow", goOnline);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", goOnline);
+      window.removeEventListener("pageshow", goOnline);
+    };
   }, [isJoined, userName]);
   useEffect(() => {
     if (isJoined && userName && questions && questions[userName]) {
