@@ -384,7 +384,6 @@ export function useQuizApp() {
       const finalDelay = appState.finalTransitionDelay ?? 5;
       const correctCount = Object.entries(currentAnswers)
         .filter(([, d]) => currentQ && d.choice === currentQ.correctIndex).length;
-      // showRanking開始(2000ms) + ランキングアニメーション完了(1500ms×人数) + ランキング表示時間(rankingDisplayTime)
       const t5 = 2000 + (correctCount * 1500) + ((appState.rankingDisplayTime ?? 5) * 1000);
       timers.push(setTimeout(() => {
         setResultPhase("showFinalCountdown");
@@ -395,11 +394,13 @@ export function useQuizApp() {
             return prev - 1;
           });
         }, 1000);
+        // 最終結果への遷移はトランザクションで一度だけ実行
         setTimeout(() => {
           clearInterval(countInterval);
-          const updates: Record<string, boolean> = {};
-          Object.entries(users).forEach(([name]) => { updates[`users/${name}/isReady`] = false; });
-          update(ref(db), updates).then(() => setMode("finalResult"));
+          runTransaction(ref(db, "appState/mode"), (currentMode) => {
+            if (currentMode === "result") return "finalResult";
+            return;
+          });
         }, finalDelay * 1000);
       }, t5));
     }
@@ -409,11 +410,15 @@ export function useQuizApp() {
 
   // --- 最終結果アニメーション ---
   useEffect(() => {
-    if (appState.mode === "finalResult") {
-      if (finalInitRef.current) return;
-      // usersデータが揃ってから実行（空の場合は次のuseEffect発火を待つ）
-      if (Object.keys(users).length === 0) return;
-      finalInitRef.current = true;
+    if (appState.mode !== "finalResult") {
+      finalInitRef.current = false;
+      setSortedFinalResults([]);
+      setFinalRevealIndex(0);
+      return;
+    }
+    if (finalInitRef.current) return;
+    if (Object.keys(users).length === 0) return;
+    finalInitRef.current = true;
       const finalArr = Object.entries(users || {}).map(([name, data]) => ({
         name,
         score: data.score ?? 0,
@@ -435,11 +440,6 @@ export function useQuizApp() {
         );
       }, 1500);
       return () => clearInterval(interval);
-    } else {
-      finalInitRef.current = false;
-      setSortedFinalResults([]);
-      setFinalRevealIndex(0);
-    }
   }, [appState.mode, users]);
 
   // --- 初期化時の自動キックアウト ---
