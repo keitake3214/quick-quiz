@@ -8,8 +8,6 @@ export type AppState = {
   mode: "registration" | "countdown" | "execution" | "result" | "finalResult";
   timeLimit: number;
   finalTransitionDelay: number;
-  resultRevealDelay: number;
-  resultAnswerDelay: number;
   currentQuestionId: string | null;
   currentQuestionText?: string;
   questionStartTime: number;
@@ -45,14 +43,7 @@ export type LineProfile = {
   pictureUrl: string;
 };
 
-export type ResultPhase =
-  | "idle"
-  | "showAnswerModal"
-  | "showAnswers"
-  | "showCorrectModal"
-  | "showCorrect"
-  | "showRanking"
-  | "showFinalCountdown";
+export type ResultPhase = "idle" | "showCorrect" | "showRanking" | "showFinalCountdown";
 
 // --- バックエンドロジック本体 ---
 export function useQuizApp() {
@@ -64,8 +55,6 @@ export function useQuizApp() {
     mode: "registration",
     timeLimit: 20,
     finalTransitionDelay: 5,
-    resultRevealDelay: 5,
-    resultAnswerDelay: 5,
     currentQuestionId: null,
     questionStartTime: 0,
     askedQuestions: {},
@@ -90,7 +79,6 @@ export function useQuizApp() {
 
   const [sortedResults, setSortedResults] = useState<any[]>([]);
   const [resultPhase, setResultPhase] = useState<ResultPhase>("idle");
-  const [shuffledAnswers, setShuffledAnswers] = useState<{ name: string; choice: number }[]>([]);
   const [finalCountdown, setFinalCountdown] = useState(5);
 
   const [finalRevealIndex, setFinalRevealIndex] = useState(0);
@@ -143,7 +131,6 @@ export function useQuizApp() {
   // --- Firebaseデータ購読 & 自動ログインチェック ---
   useEffect(() => {
     signInAnonymously(auth).catch(console.error);
-
     const unsubState = onValue(ref(db, "appState"), (s) => s.exists() && setAppState(s.val()));
     const unsubQuestions = onValue(ref(db, "questions"), (s) =>
       s.exists() ? setQuestions(s.val()) : setQuestions({})
@@ -167,7 +154,6 @@ export function useQuizApp() {
         }
       }
     });
-
     return () => { unsubState(); unsubQuestions(); unsubUsers(); unsubAnswers(); };
   }, []);
 
@@ -243,7 +229,6 @@ export function useQuizApp() {
     if (onlineUsers.length === 0) return;
     const allReady = onlineUsers.every(([, d]) => d.isReady === true);
     if (!allReady) return;
-
     if (appState.mode === "result") {
       const questionIds = Object.keys(questions || {});
       const askedIds = appState.askedQuestions ? Object.keys(appState.askedQuestions) : [];
@@ -255,7 +240,6 @@ export function useQuizApp() {
         return;
       }
     }
-
     update(ref(db, "appState"), { mode: "countdown", countdownStartTime: Date.now() });
   }, [users, appState.mode, appState.askedQuestions, questions]);
 
@@ -312,24 +296,14 @@ export function useQuizApp() {
   }, [appState.currentQuestionId]);
 
   // --- 結果発表フェーズ管理 ---
-  // idle → showAnswerModal(2s) → showAnswers → showCorrectModal(2s) → showCorrect → showRanking → showFinalCountdown
+  // idle → showCorrect(即時) → showRanking(2s後) → showFinalCountdown(2s後、最終問題のみ)
   useEffect(() => {
     if (appState.mode !== "result" || !appState.currentQuestionId) {
       setResultPhase("idle");
-      setShuffledAnswers([]);
       setFinalCountdown(appState.finalTransitionDelay ?? 5);
       return;
     }
-
     const currentQ = questions[appState.currentQuestionId];
-    const revealDelay = (appState.resultRevealDelay ?? 5) * 1000;
-    const answerDelay = (appState.resultAnswerDelay ?? 5) * 1000;
-
-    // 回答者リストをシャッフル
-    const answers = Object.entries(currentAnswers).map(([name, d]) => ({ name, choice: d.choice }));
-    setShuffledAnswers([...answers].sort(() => Math.random() - 0.5));
-
-    // sortedResults（ランキング用）
     if (currentQ) {
       const resultsArray = Object.entries(currentAnswers).map(([name, data]) => ({
         name,
@@ -344,24 +318,12 @@ export function useQuizApp() {
       });
       setSortedResults(resultsArray);
     }
-
-    const t0 = revealDelay;           // showAnswerModal
-    const t1 = t0 + 2000;             // showAnswers
-    const t2 = t1 + answerDelay;      // showCorrectModal
-    const t3 = t2 + 2000;             // showCorrect
-    const t4 = t3 + 2000;             // showRanking
-
     const timers: ReturnType<typeof setTimeout>[] = [
-      setTimeout(() => setResultPhase("showAnswerModal"), t0),
-      setTimeout(() => setResultPhase("showAnswers"), t1),
-      setTimeout(() => setResultPhase("showCorrectModal"), t2),
-      setTimeout(() => setResultPhase("showCorrect"), t3),
-      setTimeout(() => setResultPhase("showRanking"), t4),
+      setTimeout(() => setResultPhase("showCorrect"), 0),
+      setTimeout(() => setResultPhase("showRanking"), 2000),
     ];
-
     if (isLastQuestion) {
       const finalDelay = appState.finalTransitionDelay ?? 5;
-      const t5 = t4 + 2000;
       timers.push(setTimeout(() => {
         setResultPhase("showFinalCountdown");
         setFinalCountdown(finalDelay);
@@ -377,9 +339,8 @@ export function useQuizApp() {
           Object.entries(users).forEach(([name]) => { updates[`users/${name}/isReady`] = false; });
           update(ref(db), updates).then(() => setMode("finalResult"));
         }, finalDelay * 1000);
-      }, t5));
+      }, 4000));
     }
-
     return () => timers.forEach(clearTimeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appState.mode, appState.currentQuestionId]);
@@ -401,10 +362,8 @@ export function useQuizApp() {
       });
       finalArr.forEach((item, idx) => { item.rank = idx + 1; });
       finalArr.reverse();
-
       setSortedFinalResults(finalArr);
       setFinalRevealIndex(0);
-
       const interval = setInterval(() => {
         setFinalRevealIndex((prev) =>
           prev >= finalArr.length ? (clearInterval(interval), prev) : prev + 1
@@ -594,7 +553,7 @@ export function useQuizApp() {
     lineProfile, userName, setUserName, isJoined, appState, questions, users, currentAnswers,
     myQuestion, setMyQuestion, timeLeft, hasAnswered, showSaveModal, showResetModal,
     countdownValue, showReadyScreen,
-    sortedResults, resultPhase, shuffledAnswers, finalCountdown,
+    sortedResults, resultPhase, finalCountdown,
     finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
     loginWithLine, join, toggleReady, saveQuestion, setMode, resetGameToRegistration,

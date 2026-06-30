@@ -10,7 +10,7 @@ export default function Home() {
     lineProfile, userName, isJoined, appState, questions, users, currentAnswers,
     myQuestion, setMyQuestion, timeLeft, hasAnswered, showSaveModal, showResetModal,
     countdownValue, showReadyScreen,
-    sortedResults, resultPhase, shuffledAnswers, finalCountdown, finalRevealIndex, sortedFinalResults,
+    sortedResults, resultPhase, finalCountdown, finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
     loginWithLine, join, toggleReady, saveQuestion, setMode, resetGameToRegistration,
     removeUser, addTestUsers, runTestAnswers, nextQuestion, showResults, submitAnswer
@@ -232,24 +232,6 @@ export default function Home() {
                       type="number" min={3} max={30}
                       value={appState.finalTransitionDelay ?? 5}
                       onChange={(e) => update(ref(db, "appState"), { finalTransitionDelay: Number(e.target.value) })}
-                      className="w-full border-2 border-gray-300 rounded-lg p-2 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">回答表示までの秒数（秒）</label>
-                    <input
-                      type="number" min={1} max={30}
-                      value={appState.resultRevealDelay ?? 5}
-                      onChange={(e) => update(ref(db, "appState"), { resultRevealDelay: Number(e.target.value) })}
-                      className="w-full border-2 border-gray-300 rounded-lg p-2 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">正解表示までの秒数（秒）</label>
-                    <input
-                      type="number" min={1} max={30}
-                      value={appState.resultAnswerDelay ?? 5}
-                      onChange={(e) => update(ref(db, "appState"), { resultAnswerDelay: Number(e.target.value) })}
                       className="w-full border-2 border-gray-300 rounded-lg p-2 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
                     />
                   </div>
@@ -478,25 +460,7 @@ export default function Home() {
           const myResult = sortedResults.find((r) => r.name === userName);
 
           return (
-            <div className="bg-white p-6 rounded-lg shadow text-center overflow-hidden relative">
-
-              {/* みなさんの回答は？モーダル */}
-              {resultPhase === "showAnswerModal" && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                  <div className="bg-white rounded-2xl shadow-2xl px-10 py-8 text-center animate-bounce">
-                    <p className="text-3xl font-extrabold text-gray-800">みなさんの回答結果は？</p>
-                  </div>
-                </div>
-              )}
-
-              {/* 正解は...モーダル */}
-              {resultPhase === "showCorrectModal" && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                  <div className="bg-white rounded-2xl shadow-2xl px-10 py-8 text-center animate-bounce">
-                    <p className="text-3xl font-extrabold text-gray-800">正解は...</p>
-                  </div>
-                </div>
-              )}
+            <div className="bg-white p-6 rounded-lg shadow text-center overflow-hidden">
 
               {/* 問題文 */}
               <p className="text-sm text-gray-400 mb-1">問題</p>
@@ -529,9 +493,9 @@ export default function Home() {
                     <p className="text-gray-400">正解者はいませんでした</p>
                   ) : (
                     <div className="flex flex-col gap-2">
-                      {correctResults.map((result, i) => (
-                        <div key={result.name} className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border-2 border-red-200 text-red-700 font-bold">
-                          <span className="text-lg font-black w-6">{i + 1}.</span>
+                      {[...correctResults].reverse().map((result, i) => (
+                        <div key={result.name} className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border-2 border-red-200 text-red-700 font-bold animate-slide-in-right">
+                          <span className="text-lg font-black w-6">{correctResults.length - i}.</span>
                           {users[result.name]?.pictureUrl ? (
                             <img src={users[result.name].pictureUrl} alt={result.name} className="w-8 h-8 rounded-full object-cover" />
                           ) : <span>👤</span>}
