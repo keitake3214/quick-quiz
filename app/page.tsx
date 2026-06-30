@@ -13,13 +13,14 @@ export default function Home() {
     revealIndex, sortedResults, showCorrectAnswer, finalCountdown, finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
     loginWithLine, join, toggleReady, saveQuestion, setMode, resetGameToRegistration,
-    removeUser, nextQuestion, showResults, submitAnswer
+    removeUser, addTestUsers, runTestAnswers, nextQuestion, showResults, submitAnswer
   } = useQuizApp();
 
   const isOwner = !!process.env.NEXT_PUBLIC_OWNER_LINE_ID &&
     lineProfile?.userId === process.env.NEXT_PUBLIC_OWNER_LINE_ID;
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [testUserCount, setTestUserCount] = useState(3);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -236,6 +237,36 @@ export default function Home() {
                       結果発表演出へ
                     </button>
                   )}
+
+                  {/* テスト用 */}
+                  <div className="border-t pt-4">
+                    <p className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wide">PRE環境テスト用</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="text-sm font-bold text-gray-600 shrink-0">人数</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={testUserCount}
+                        onChange={(e) => setTestUserCount(Number(e.target.value))}
+                        className="w-20 border-2 border-gray-300 rounded-lg p-1 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
+                      />
+                      <button
+                        onClick={() => addTestUsers(testUserCount)}
+                        disabled={appState.mode !== "registration"}
+                        className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-1.5 rounded-lg font-bold text-sm transition-colors"
+                      >
+                        テストユーザー追加
+                      </button>
+                    </div>
+                    <button
+                      onClick={runTestAnswers}
+                      disabled={appState.mode !== "execution"}
+                      className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white py-1.5 rounded-lg font-bold text-sm transition-colors"
+                    >
+                      テスト回答を実行
+                    </button>
+                  </div>
                 </div>
 
                 <button
@@ -527,7 +558,7 @@ export default function Home() {
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-blue-600 font-extrabold">{item.score} pt</p>
-                        <p className="text-xs text-gray-400 font-normal">累計 {item.totalTimeTaken.toFixed(1)} 秒</p>
+                        <p className="text-xs text-gray-400 font-normal">累計 {item.totalTimeTaken.toFixed(3)} 秒</p>
                       </div>
                     </div>
                   );

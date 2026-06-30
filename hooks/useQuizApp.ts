@@ -494,6 +494,45 @@ export function useQuizApp() {
     ]);
   };
 
+  // --- テストユーザー追加（PRE環境テスト用） ---
+  const addTestUsers = async (count: number) => {
+    const updates: Record<string, any> = {};
+    for (let i = 1; i <= count; i++) {
+      const name = `テスト${i}`;
+      updates[`users/${name}`] = {
+        score: 0,
+        totalTimeTaken: 0,
+        isOnline: true,
+        isReady: true,
+        lineUserId: `test_user_${i}`,
+        displayName: name,
+        pictureUrl: "",
+      };
+      updates[`questions/${name}`] = {
+        text: "テスト用問題",
+        choices: ["テスト選択肢1", "テスト選択肢2", "テスト選択肢3", "テスト選択肢4"],
+        correctIndex: Math.floor(Math.random() * 4),
+      };
+    }
+    await update(ref(db), updates);
+  };
+
+  // --- テストユーザー自動回答（executionモード中に呼び出す） ---
+  const runTestAnswers = async () => {
+    if (appState.mode !== "execution" || !appState.currentQuestionId) return;
+    const testUsers = Object.entries(users).filter(([name]) => name.startsWith("テスト"));
+    const timeLimit = appState.timeLimit || 20;
+    for (const [name] of testUsers) {
+      const randomChoice = Math.floor(Math.random() * 4);
+      // 0.5秒から制限時間の95%の間でランダムに回答
+      const randomTime = 0.5 + Math.random() * (timeLimit * 0.95 - 0.5);
+      await set(ref(db, `currentAnswers/${name}`), {
+        choice: randomChoice,
+        timeTaken: parseFloat(randomTime.toFixed(3)),
+      });
+    }
+  };
+
   const nextQuestion = async () => {
     const questionIds = Object.keys(questions || {});
     if (questionIds.length === 0) return alert("問題が登録されていません");
@@ -584,6 +623,8 @@ export function useQuizApp() {
     setMode,
     resetGameToRegistration,
     removeUser,
+    addTestUsers,
+    runTestAnswers,
     nextQuestion,
     showResults,
     submitAnswer,
