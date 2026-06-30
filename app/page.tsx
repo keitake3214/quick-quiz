@@ -46,13 +46,21 @@ export default function Home() {
         {userEntries.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-2">待機中のメンバーはいません</p>
         ) : (
-          <div className="flex flex-wrap gap-6 justify-center py-2">
-            {userEntries.map(([name, data]) => {
+          <div className="flex gap-4 overflow-x-auto pb-2 px-1">
+            {[...userEntries]
+              .sort(([, a], [, b]) => {
+                // 準備未完を前列に、準備完了を後列に
+                const aReady = a.isReady === true;
+                const bReady = b.isReady === true;
+                if (aReady !== bReady) return aReady ? 1 : -1;
+                return 0;
+              })
+              .map(([name, data]) => {
               const isOnline = data.isOnline !== false;
               const ready = data.isReady === true;
               return (
-                <div key={name} className="flex flex-col items-center gap-1 w-16">
-                  <div className={`relative w-14 h-14 rounded-full ${ready ? "ring-4 ring-green-400" : ""}`}>
+                <div key={name} className="flex flex-col items-center gap-1 shrink-0 w-16">
+                  <div className={`relative w-14 h-14 rounded-full ${ready ? "ring-4 ring-green-400" : "ring-2 ring-orange-300"}`}>
                     {data.pictureUrl ? (
                       <img
                         src={data.pictureUrl}
@@ -83,9 +91,9 @@ export default function Home() {
                   <span className={`text-xs font-medium text-center break-all leading-tight ${!isOnline ? "text-gray-400" : "text-gray-700"}`}>
                     {name === userName ? `${name}` : name}
                   </span>
-                  {ready && (
-                    <span className="text-xs font-bold text-green-600 bg-green-50 px-1 py-0.5 rounded">準備完了</span>
-                  )}
+                  <span className={`text-xs font-bold px-1 py-0.5 rounded ${ready ? "text-green-600 bg-green-50" : "text-orange-500 bg-orange-50"}`}>
+                    {ready ? "準備完了" : "未準備"}
+                  </span>
                 </div>
               );
             })}
