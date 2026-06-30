@@ -494,8 +494,8 @@ export default function Home() {
                     <p className="text-gray-400">正解者はいませんでした</p>
                   ) : (
                     <div className="flex flex-col gap-2">
-                      {correctResults.slice(0, resultRevealIndex).reverse().map((result, i) => {
-                        const rank = i + 1;
+                      {correctResults.slice(0, resultRevealIndex).reverse().map((result) => {
+                        const rank = correctResults.indexOf(result) + 1;
                         let medal = "";
                         if (rank === 1) medal = "🥇 ";
                         else if (rank === 2) medal = "🥈 ";
