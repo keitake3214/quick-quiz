@@ -12,7 +12,7 @@ export default function Home() {
     countdownValue, showReadyScreen,
     sortedResults, resultPhase, resultRevealIndex, finalCountdown, finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
-    loginWithLine, join, toggleReady, saveQuestion, setMode, resetGameToRegistration,
+    loginWithLine, join, toggleReady, saveQuestion, resetGameToRegistration,
     removeUser, addTestUsers, runTestAnswers, nextQuestion, showResults, submitAnswer
   } = useQuizApp();
 
@@ -596,12 +596,11 @@ export default function Home() {
             {/* ロビーに戻るボタン */}
             {finalRevealIndex >= sortedFinalResults.length && sortedFinalResults.length > 0 && (
               <button
-                onClick={isOwner ? resetGameToRegistration : undefined}
-                disabled={!isOwner}
+                onClick={isOwner ? resetGameToRegistration : () => removeUser(userName)}
                 className={`mt-8 w-full py-4 rounded-xl font-bold text-lg shadow transition-colors ${
                   isOwner
                     ? "bg-blue-500 hover:bg-blue-600 text-white"
-                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    : "bg-gray-200 hover:bg-gray-300 text-gray-700"
                 }`}
               >
                 {isOwner ? "ロビーに戻る" : "ゲーム終了"}
