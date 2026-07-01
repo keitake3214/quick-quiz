@@ -599,7 +599,7 @@ export default function Home() {
                 onClick={resetGameToRegistration}
                 className="mt-8 w-full py-4 rounded-xl font-bold text-lg shadow transition-colors bg-blue-500 hover:bg-blue-600 text-white"
               >
-                ロビーに戻る
+                解散
               </button>
             )}
           </div>
