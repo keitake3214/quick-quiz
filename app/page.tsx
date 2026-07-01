@@ -593,17 +593,13 @@ export default function Home() {
               </div>
             )}
 
-            {/* ロビーに戻るボタン */}
-            {finalRevealIndex >= sortedFinalResults.length && sortedFinalResults.length > 0 && (
+            {/* ロビーに戻るボタン（オーナーのみ） */}
+            {isOwner && finalRevealIndex >= sortedFinalResults.length && sortedFinalResults.length > 0 && (
               <button
-                onClick={isOwner ? resetGameToRegistration : () => removeUser(userName)}
-                className={`mt-8 w-full py-4 rounded-xl font-bold text-lg shadow transition-colors ${
-                  isOwner
-                    ? "bg-blue-500 hover:bg-blue-600 text-white"
-                    : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                }`}
+                onClick={resetGameToRegistration}
+                className="mt-8 w-full py-4 rounded-xl font-bold text-lg shadow transition-colors bg-blue-500 hover:bg-blue-600 text-white"
               >
-                {isOwner ? "ロビーに戻る" : "ゲーム終了"}
+                ロビーに戻る
               </button>
             )}
           </div>
