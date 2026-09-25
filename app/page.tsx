@@ -188,7 +188,7 @@ export default function Home() {
               type="text"
               placeholder="ルームID（6桁）"
               value={roomInput}
-              onChange={(e) => setRoomInput(e.target.value.toUpperCase())}
+              onChange={(e) => setRoomInput(e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase())}
               maxLength={6}
               className="w-full border-2 border-gray-300 rounded-xl p-3 text-center text-xl font-bold tracking-widest focus:border-blue-500 focus:outline-none mb-3 text-black placeholder-gray-400"
             />
