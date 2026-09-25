@@ -20,9 +20,14 @@
 - 【バグ修正】resultRevealIndexのリセット漏れ → resultPhaseがidleに戻る際に0リセット追加
 - 【不要コード削除】countdownInitRef、setMode、setUserNameをreturnから削除
 - 【バグ修正】一般ユーザーの「ゲーム終了」ボタン → removeUser(userName)で自分をFirebaseから削除して退出
+- ルーム機能追加（ルームID発行・参加・ホスト権限）
+  - LINEログイン後に「部屋を作る」「部屋に参加する」画面を表示
+  - ルームIDはランダム英数字6桁
+  - ルーム作成者（isRoomHost）は設定ボタンを表示（PRE環境テスト用は管理者のみ）
+  - FirebaseパスをroomsベースのマルチルームDB構造に変更
 
 ## [現在のエラー]
-- なし（ビルド成功確認済み: 848c3d5）
+- なし（ビルド成功確認済み）
 
 ## [未完了のタスク]
 - Vercelに NEXT_PUBLIC_OWNER_LINE_ID を設定する（手動作業）
