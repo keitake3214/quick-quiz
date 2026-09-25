@@ -468,13 +468,19 @@ export function useQuizApp() {
 
   // --- 初期化時の自動キチE��アウチE---
   useEffect(() => {
-    if (isJoined && userName && autoLoginProcessed.current && (!users || !users[userName])) {
+    if (!isJoined || !userName || !roomId) return;
+    if (Object.keys(users).length === 0) return; // Firebase購読がまだ届いていない
+    if (!users[userName]) {
       setIsJoined(false);
       setUserName("");
+      setRoomId(null);
+      setIsRoomHost(false);
       localStorage.removeItem("quick_quiz_user_name");
+      localStorage.removeItem("quick_quiz_room_id");
+      localStorage.removeItem("quick_quiz_is_host");
       setMyQuestion({ text: "", choices: ["", "", "", ""], correctIndex: 0 });
     }
-  }, [users, isJoined, userName]);
+  }, [users, isJoined, userName, roomId]);
 
   // --- アクション関数 ---
   const loginWithLine = () => {
