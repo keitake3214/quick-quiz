@@ -570,17 +570,32 @@ export function useQuizApp() {
 
   const resetGameToRegistration = async () => {
     if (!roomId) return;
-    await Promise.all([
-      remove(ref(db, `rooms/${roomId}/users`)),
-      remove(ref(db, `rooms/${roomId}/questions`)),
-      remove(ref(db, `rooms/${roomId}/currentAnswers`)),
-      update(ref(db, `rooms/${roomId}/appState`), {
-        mode: "registration", currentQuestionId: null, askedQuestions: null, countdownStartTime: null,
-      }),
-    ]);
+    await remove(ref(db, `rooms/${roomId}`));
+    setIsJoined(false);
+    setUserName("");
+    setRoomId(null);
+    setIsRoomHost(false);
+    setMyQuestion({ text: "", choices: ["", "", "", ""], correctIndex: 0 });
+    localStorage.removeItem("quick_quiz_user_name");
+    localStorage.removeItem("quick_quiz_room_id");
+    localStorage.removeItem("quick_quiz_is_host");
     setShowResetModal(false);
     setTimeout(() => setShowResetModal(true), 50);
     setTimeout(() => setShowResetModal(false), 2500);
+  };
+
+  const deleteRoom = async (targetRoomId: string) => {
+    await remove(ref(db, `rooms/${targetRoomId}`));
+    if (targetRoomId === roomId) {
+      setIsJoined(false);
+      setUserName("");
+      setRoomId(null);
+      setIsRoomHost(false);
+      setMyQuestion({ text: "", choices: ["", "", "", ""], correctIndex: 0 });
+      localStorage.removeItem("quick_quiz_user_name");
+      localStorage.removeItem("quick_quiz_room_id");
+      localStorage.removeItem("quick_quiz_is_host");
+    }
   };
 
   const removeUser = async (targetName: string) => {
@@ -693,7 +708,7 @@ export function useQuizApp() {
     sortedResults, resultPhase, resultRevealIndex, finalCountdown,
     finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
-    activeRooms, loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration,
+    activeRooms, loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration, deleteRoom,
     removeUser, addTestUsers, runTestAnswers, nextQuestion, showResults, submitAnswer,
   };
 }

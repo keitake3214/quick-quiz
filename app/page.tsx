@@ -13,7 +13,7 @@ export default function Home() {
     countdownValue, showReadyScreen,
     sortedResults, resultPhase, resultRevealIndex, finalCountdown, finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
-    activeRooms, loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration,
+    activeRooms, loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration, deleteRoom,
     removeUser, addTestUsers, runTestAnswers, nextQuestion, showResults, submitAnswer
   } = useQuizApp();
 
@@ -332,6 +332,12 @@ export default function Home() {
                           rid === roomId ? "bg-blue-50 border border-blue-300 text-blue-700 font-bold" : "bg-gray-50 text-gray-600"
                         }`}>
                           <span>{rid}{rid === roomId ? " ← 現在" : ""}</span>
+                          <button
+                            onClick={() => deleteRoom(rid)}
+                            className="ml-2 text-xs text-red-500 hover:text-red-700 font-bold px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
+                          >
+                            解放
+                          </button>
                         </div>
                       ))}
                     </div>
