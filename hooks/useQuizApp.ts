@@ -54,6 +54,7 @@ export function useQuizApp() {
   const [roomId, setRoomId] = useState<string | null>(null);
   const [isRoomHost, setIsRoomHost] = useState(false);
   const [roomInput, setRoomInput] = useState("");
+  const [activeRooms, setActiveRooms] = useState<string[]>([]);
 
   const [appState, setAppState] = useState<AppState>({
     mode: "registration",
@@ -175,6 +176,16 @@ export function useQuizApp() {
     });
     return () => { unsubState(); unsubQuestions(); unsubUsers(); unsubAnswers(); };
   }, [roomId]);
+
+  // --- 管理者用：全ルーム一覧購読 ---
+  useEffect(() => {
+    const ownerLineId = process.env.NEXT_PUBLIC_OWNER_LINE_ID;
+    if (!lineProfile || !ownerLineId || lineProfile.userId !== ownerLineId) return;
+    const unsubRooms = onValue(ref(db, "rooms"), (s) => {
+      setActiveRooms(s.exists() ? Object.keys(s.val()) : []);
+    });
+    return () => unsubRooms();
+  }, [lineProfile]);
 
   // --- isJoined確定後に確実にisOnline:trueを書き込む ---
   useEffect(() => {
@@ -676,7 +687,7 @@ export function useQuizApp() {
     sortedResults, resultPhase, resultRevealIndex, finalCountdown,
     finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
-    loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration,
+    activeRooms, loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration,
     removeUser, addTestUsers, runTestAnswers, nextQuestion, showResults, submitAnswer,
   };
 }
