@@ -54,6 +54,7 @@ export function useQuizApp() {
   const [roomId, setRoomId] = useState<string | null>(null);
   const [isRoomHost, setIsRoomHost] = useState(false);
   const [roomInput, setRoomInput] = useState("");
+  const [activeRooms, setActiveRooms] = useState<string[]>([]);
 
   const [appState, setAppState] = useState<AppState>({
     mode: "registration",
@@ -175,6 +176,16 @@ export function useQuizApp() {
     });
     return () => { unsubState(); unsubQuestions(); unsubUsers(); unsubAnswers(); };
   }, [roomId]);
+
+  // --- 管理者用：全ルーム一覧購読 ---
+  useEffect(() => {
+    const ownerLineId = process.env.NEXT_PUBLIC_OWNER_LINE_ID;
+    if (!lineProfile || !ownerLineId || lineProfile.userId !== ownerLineId) return;
+    const unsubRooms = onValue(ref(db, "rooms"), (s) => {
+      setActiveRooms(s.exists() ? Object.keys(s.val()) : []);
+    });
+    return () => unsubRooms();
+  }, [lineProfile]);
 
   // --- isJoined確定後に確実にisOnline:trueを書き込む ---
   useEffect(() => {
@@ -457,13 +468,19 @@ export function useQuizApp() {
 
   // --- 初期化時の自動キチE��アウチE---
   useEffect(() => {
-    if (isJoined && userName && autoLoginProcessed.current && (!users || !users[userName])) {
+    if (!isJoined || !userName || !roomId) return;
+    if (Object.keys(users).length === 0) return; // Firebase購読がまだ届いていない
+    if (!users[userName]) {
       setIsJoined(false);
       setUserName("");
+      setRoomId(null);
+      setIsRoomHost(false);
       localStorage.removeItem("quick_quiz_user_name");
+      localStorage.removeItem("quick_quiz_room_id");
+      localStorage.removeItem("quick_quiz_is_host");
       setMyQuestion({ text: "", choices: ["", "", "", ""], correctIndex: 0 });
     }
-  }, [users, isJoined, userName]);
+  }, [users, isJoined, userName, roomId]);
 
   // --- アクション関数 ---
   const loginWithLine = () => {
@@ -553,17 +570,32 @@ export function useQuizApp() {
 
   const resetGameToRegistration = async () => {
     if (!roomId) return;
-    await Promise.all([
-      remove(ref(db, `rooms/${roomId}/users`)),
-      remove(ref(db, `rooms/${roomId}/questions`)),
-      remove(ref(db, `rooms/${roomId}/currentAnswers`)),
-      update(ref(db, `rooms/${roomId}/appState`), {
-        mode: "registration", currentQuestionId: null, askedQuestions: null, countdownStartTime: null,
-      }),
-    ]);
+    await remove(ref(db, `rooms/${roomId}`));
+    setIsJoined(false);
+    setUserName("");
+    setRoomId(null);
+    setIsRoomHost(false);
+    setMyQuestion({ text: "", choices: ["", "", "", ""], correctIndex: 0 });
+    localStorage.removeItem("quick_quiz_user_name");
+    localStorage.removeItem("quick_quiz_room_id");
+    localStorage.removeItem("quick_quiz_is_host");
     setShowResetModal(false);
     setTimeout(() => setShowResetModal(true), 50);
     setTimeout(() => setShowResetModal(false), 2500);
+  };
+
+  const deleteRoom = async (targetRoomId: string) => {
+    await remove(ref(db, `rooms/${targetRoomId}`));
+    if (targetRoomId === roomId) {
+      setIsJoined(false);
+      setUserName("");
+      setRoomId(null);
+      setIsRoomHost(false);
+      setMyQuestion({ text: "", choices: ["", "", "", ""], correctIndex: 0 });
+      localStorage.removeItem("quick_quiz_user_name");
+      localStorage.removeItem("quick_quiz_room_id");
+      localStorage.removeItem("quick_quiz_is_host");
+    }
   };
 
   const removeUser = async (targetName: string) => {
@@ -573,6 +605,23 @@ export function useQuizApp() {
       remove(ref(db, `rooms/${roomId}/questions/${targetName}`)),
       remove(ref(db, `rooms/${roomId}/currentAnswers/${targetName}`)),
     ]);
+    // 自分が退出した場合はローカル状態をリセット
+    if (targetName === userName) {
+      setIsJoined(false);
+      setUserName("");
+      setRoomId(null);
+      setIsRoomHost(false);
+      setMyQuestion({ text: "", choices: ["", "", "", ""], correctIndex: 0 });
+      localStorage.removeItem("quick_quiz_user_name");
+      localStorage.removeItem("quick_quiz_room_id");
+      localStorage.removeItem("quick_quiz_is_host");
+      return;
+    }
+    // 残りユーザーが0人になったらルームを削除
+    const snap = await get(ref(db, `rooms/${roomId}/users`));
+    if (!snap.exists() || Object.keys(snap.val()).length === 0) {
+      await remove(ref(db, `rooms/${roomId}`));
+    }
   };
 
   const addTestUsers = async (count: number) => {
@@ -676,7 +725,7 @@ export function useQuizApp() {
     sortedResults, resultPhase, resultRevealIndex, finalCountdown,
     finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
-    loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration,
+    activeRooms, loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration, deleteRoom,
     removeUser, addTestUsers, runTestAnswers, nextQuestion, showResults, submitAnswer,
   };
 }

@@ -13,7 +13,7 @@ export default function Home() {
     countdownValue, showReadyScreen,
     sortedResults, resultPhase, resultRevealIndex, finalCountdown, finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
-    loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration,
+    activeRooms, loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration, deleteRoom,
     removeUser, addTestUsers, runTestAnswers, nextQuestion, showResults, submitAnswer
   } = useQuizApp();
 
@@ -40,10 +40,16 @@ export default function Home() {
 
     return (
       <div className="p-4 bg-white rounded-xl shadow text-left">
-        <h4 className="font-bold mb-4 text-gray-700 flex items-center gap-2">
+        <h4 className="font-bold mb-2 text-gray-700 flex items-center gap-2">
           <span>{appState.mode === "result" ? "次の問題への準備" : "ロビー"}</span>
           <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">{userEntries.length} 人</span>
         </h4>
+        {roomId && (
+          <div className="mb-4 flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+            <span className="text-xs text-gray-500 shrink-0">ルームID</span>
+            <span className="font-mono font-extrabold text-lg tracking-widest text-blue-600">{roomId}</span>
+          </div>
+        )}
 
         {userEntries.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-2">待機中のメンバーはいません</p>
@@ -184,7 +190,7 @@ export default function Home() {
               value={roomInput}
               onChange={(e) => setRoomInput(e.target.value.toUpperCase())}
               maxLength={6}
-              className="w-full border-2 border-gray-300 rounded-xl p-3 text-center text-xl font-bold tracking-widest focus:border-blue-500 focus:outline-none mb-3"
+              className="w-full border-2 border-gray-300 rounded-xl p-3 text-center text-xl font-bold tracking-widest focus:border-blue-500 focus:outline-none mb-3 text-black placeholder-gray-400"
             />
             <button
               onClick={() => joinRoom(roomInput)}
@@ -315,6 +321,28 @@ export default function Home() {
                 >
                   🚪 部屋を解散する
                 </button>
+
+                {/* 管理者のみ：アクティブルーム一覧 */}
+                {isOwner && activeRooms.length > 0 && (
+                  <div className="mt-4 border-t pt-4">
+                    <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">アクティブルーム ({activeRooms.length})</p>
+                    <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+                      {activeRooms.map((rid) => (
+                        <div key={rid} className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-sm font-mono ${
+                          rid === roomId ? "bg-blue-50 border border-blue-300 text-blue-700 font-bold" : "bg-gray-50 text-gray-600"
+                        }`}>
+                          <span>{rid}{rid === roomId ? " ← 現在" : ""}</span>
+                          <button
+                            onClick={() => deleteRoom(rid)}
+                            className="ml-2 text-xs text-red-500 hover:text-red-700 font-bold px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
+                          >
+                            解放
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <button
                   onClick={() => setShowSettingsModal(false)}
@@ -619,12 +647,12 @@ export default function Home() {
             )}
 
             {/* ロビーに戻るボタン（オーナーのみ） */}
-            {canManage && finalRevealIndex >= sortedFinalResults.length && sortedFinalResults.length > 0 && (
+            {finalRevealIndex >= sortedFinalResults.length && sortedFinalResults.length > 0 && (
               <button
-                onClick={resetGameToRegistration}
-                className="mt-8 w-full py-4 rounded-xl font-bold text-lg shadow transition-colors bg-blue-500 hover:bg-blue-600 text-white"
+                onClick={() => removeUser(userName)}
+                className="mt-8 w-full py-4 rounded-xl font-bold text-lg shadow transition-colors bg-gray-500 hover:bg-gray-600 text-white"
               >
-                解散
+                🚪 退出する
               </button>
             )}
           </div>
