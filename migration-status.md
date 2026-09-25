@@ -14,10 +14,20 @@
 - 結果発表画面に準備完了ロビー追加（全員Readyで次の問題へ）
 - 最後の問題後は最終結果へ自動遷移
 - NEXT_PUBLIC_OWNER_LINE_IDによるオーナー判定・右上解散ボタン常設
-- ビルド成功確認
+- 【バグ修正】executing_transition残留 → nextQuestion失敗時にcountdownへフォールバック
+- 【バグ修正】showResults複数実行 → runTransactionでexecution→calculatingの中間状態を挟み1回だけ実行
+- 【バグ修正】join時にtotalTimeTakenが0リセット → 既存値を引き継ぐよう修正
+- 【バグ修正】resultRevealIndexのリセット漏れ → resultPhaseがidleに戻る際に0リセット追加
+- 【不要コード削除】countdownInitRef、setMode、setUserNameをreturnから削除
+- 【バグ修正】一般ユーザーの「ゲーム終了」ボタン → removeUser(userName)で自分をFirebaseから削除して退出
+- ルーム機能追加（ルームID発行・参加・ホスト権限）
+  - LINEログイン後に「部屋を作る」「部屋に参加する」画面を表示
+  - ルームIDはランダム英数字6桁
+  - ルーム作成者（isRoomHost）は設定ボタンを表示（PRE環境テスト用は管理者のみ）
+  - FirebaseパスをroomsベースのマルチルームDB構造に変更
 
 ## [現在のエラー]
-- なし
+- なし（ビルド成功確認済み）
 
 ## [未完了のタスク]
 - Vercelに NEXT_PUBLIC_OWNER_LINE_ID を設定する（手動作業）

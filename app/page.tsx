@@ -7,17 +7,19 @@ import { db } from "../lib/firebase";
 
 export default function Home() {
   const {
-    lineProfile, userName, isJoined, appState, questions, users, currentAnswers,
+    lineProfile, userName, isJoined, roomId, isRoomHost, roomInput, setRoomInput,
+    appState, questions, users, currentAnswers,
     myQuestion, setMyQuestion, timeLeft, hasAnswered, showSaveModal, showResetModal,
     countdownValue, showReadyScreen,
     sortedResults, resultPhase, resultRevealIndex, finalCountdown, finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
-    loginWithLine, join, toggleReady, saveQuestion, setMode, resetGameToRegistration,
+    loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration,
     removeUser, addTestUsers, runTestAnswers, nextQuestion, showResults, submitAnswer
   } = useQuizApp();
 
   const isOwner = !!process.env.NEXT_PUBLIC_OWNER_LINE_ID &&
     lineProfile?.userId === process.env.NEXT_PUBLIC_OWNER_LINE_ID;
+  const canManage = isOwner || isRoomHost;
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [testUserCount, setTestUserCount] = useState(3);
@@ -77,8 +79,8 @@ export default function Home() {
                         
                       </div>
                     )}
-                    {/* オーナー専用：自分以外のユーザーを強制削除ボタン */}
-                    {isOwner && name !== userName && (
+                    {/* ホスト専用：自分以外のユーザーを強制削除ボタン */}
+                    {canManage && name !== userName && (
                       <button
                         onClick={() => removeUser(name)}
                         className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs font-bold flex items-center justify-center shadow-md leading-none"
@@ -145,7 +147,7 @@ export default function Home() {
     );
   }
 
-  // --- UI: 参加ボタン画面 ---
+  // --- UI: ルーム選択画面 ---
   if (!isJoined) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
@@ -162,16 +164,36 @@ export default function Home() {
           <img
             src={lineProfile.pictureUrl || ""}
             alt={lineProfile.displayName}
-            className="w-24 h-24 rounded-full object-cover mb-4 shadow"
+            className="w-20 h-20 rounded-full object-cover mb-3 shadow"
           />
-          <h1 className="text-2xl font-extrabold mb-1 text-black">{lineProfile.displayName}</h1>
-          <p className="text-gray-500 mb-8 text-sm">このアカウントで参加しますか？</p>
+          <h1 className="text-xl font-extrabold mb-1 text-black">{lineProfile.displayName}</h1>
+          <p className="text-gray-500 mb-8 text-sm">ルームを作るか、ルームIDで参加してください</p>
+
           <button
-            onClick={join}
-            className="w-full bg-blue-500 text-white px-8 py-4 rounded-xl text-xl font-bold shadow-md hover:bg-blue-600 transition-colors"
+            onClick={createRoom}
+            className="w-full bg-blue-500 text-white px-8 py-4 rounded-xl text-lg font-bold shadow-md hover:bg-blue-600 transition-colors mb-4"
           >
-            参加する
+            🏠 部屋を作る
           </button>
+
+          <div className="w-full border-t pt-4">
+            <p className="text-sm text-gray-500 mb-2 text-center">ルームIDで参加</p>
+            <input
+              type="text"
+              placeholder="ルームID（6桁）"
+              value={roomInput}
+              onChange={(e) => setRoomInput(e.target.value.toUpperCase())}
+              maxLength={6}
+              className="w-full border-2 border-gray-300 rounded-xl p-3 text-center text-xl font-bold tracking-widest focus:border-blue-500 focus:outline-none mb-3"
+            />
+            <button
+              onClick={() => joinRoom(roomInput)}
+              disabled={roomInput.length !== 6}
+              className="w-full bg-green-500 text-white px-8 py-4 rounded-xl text-lg font-bold shadow-md hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              🚪 部屋に参加する
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -198,8 +220,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-100 p-4 text-black relative overflow-hidden">
 
-      {/* オーナー専用：右上歯車ボタン常設 */}
-      {isOwner && (
+      {/* ホスト専用：右上歯車ボタン常設 */}
+      {canManage && (
         <>
           <button
             onClick={() => setShowSettingsModal(true)}
@@ -222,7 +244,7 @@ export default function Home() {
                       min={5}
                       max={120}
                       value={appState.timeLimit}
-                      onChange={(e) => update(ref(db, "appState"), { timeLimit: Number(e.target.value) })}
+                      onChange={(e) => update(ref(db, `rooms/${roomId}/appState`), { timeLimit: Number(e.target.value) })}
                       className="w-full border-2 border-gray-300 rounded-lg p-2 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
                     />
                   </div>
@@ -231,7 +253,7 @@ export default function Home() {
                     <input
                       type="number" min={3} max={30}
                       value={appState.finalTransitionDelay ?? 5}
-                      onChange={(e) => update(ref(db, "appState"), { finalTransitionDelay: Number(e.target.value) })}
+                      onChange={(e) => update(ref(db, `rooms/${roomId}/appState`), { finalTransitionDelay: Number(e.target.value) })}
                       className="w-full border-2 border-gray-300 rounded-lg p-2 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
                     />
                   </div>
@@ -240,7 +262,7 @@ export default function Home() {
                     <input
                       type="number" min={1} max={30}
                       value={appState.rankingDisplayTime ?? 5}
-                      onChange={(e) => update(ref(db, "appState"), { rankingDisplayTime: Number(e.target.value) })}
+                      onChange={(e) => update(ref(db, `rooms/${roomId}/appState`), { rankingDisplayTime: Number(e.target.value) })}
                       className="w-full border-2 border-gray-300 rounded-lg p-2 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
                     />
                   </div>
@@ -253,7 +275,8 @@ export default function Home() {
                     </button>
                   )}
 
-                  {/* テスト用 */}
+                  {/* テスト用 - オーナーのみ */}
+                  {isOwner && (
                   <div className="border-t pt-4">
                     <p className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wide">PRE環境テスト用</p>
                     <div className="flex items-center gap-2 mb-2">
@@ -282,6 +305,8 @@ export default function Home() {
                       テスト回答を実行
                     </button>
                   </div>
+                  )}
+
                 </div>
 
                 <button
@@ -593,13 +618,13 @@ export default function Home() {
               </div>
             )}
 
-            {/* ロビーに戻るボタン */}
-            {finalRevealIndex >= sortedFinalResults.length && sortedFinalResults.length > 0 && (
+            {/* ロビーに戻るボタン（オーナーのみ） */}
+            {canManage && finalRevealIndex >= sortedFinalResults.length && sortedFinalResults.length > 0 && (
               <button
                 onClick={resetGameToRegistration}
-                className="mt-8 w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-xl font-bold text-lg shadow transition-colors"
+                className="mt-8 w-full py-4 rounded-xl font-bold text-lg shadow transition-colors bg-blue-500 hover:bg-blue-600 text-white"
               >
-                ロビーに戻る
+                解散
               </button>
             )}
           </div>
