@@ -647,12 +647,12 @@ export default function Home() {
             )}
 
             {/* ロビーに戻るボタン（オーナーのみ） */}
-            {canManage && finalRevealIndex >= sortedFinalResults.length && sortedFinalResults.length > 0 && (
+            {finalRevealIndex >= sortedFinalResults.length && sortedFinalResults.length > 0 && (
               <button
-                onClick={resetGameToRegistration}
-                className="mt-8 w-full py-4 rounded-xl font-bold text-lg shadow transition-colors bg-blue-500 hover:bg-blue-600 text-white"
+                onClick={() => removeUser(userName)}
+                className="mt-8 w-full py-4 rounded-xl font-bold text-lg shadow transition-colors bg-gray-500 hover:bg-gray-600 text-white"
               >
-                解散
+                🚪 退出する
               </button>
             )}
           </div>

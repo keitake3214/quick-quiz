@@ -605,6 +605,23 @@ export function useQuizApp() {
       remove(ref(db, `rooms/${roomId}/questions/${targetName}`)),
       remove(ref(db, `rooms/${roomId}/currentAnswers/${targetName}`)),
     ]);
+    // 自分が退出した場合はローカル状態をリセット
+    if (targetName === userName) {
+      setIsJoined(false);
+      setUserName("");
+      setRoomId(null);
+      setIsRoomHost(false);
+      setMyQuestion({ text: "", choices: ["", "", "", ""], correctIndex: 0 });
+      localStorage.removeItem("quick_quiz_user_name");
+      localStorage.removeItem("quick_quiz_room_id");
+      localStorage.removeItem("quick_quiz_is_host");
+      return;
+    }
+    // 残りユーザーが0人になったらルームを削除
+    const snap = await get(ref(db, `rooms/${roomId}/users`));
+    if (!snap.exists() || Object.keys(snap.val()).length === 0) {
+      await remove(ref(db, `rooms/${roomId}`));
+    }
   };
 
   const addTestUsers = async (count: number) => {
