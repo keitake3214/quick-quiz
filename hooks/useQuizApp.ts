@@ -192,6 +192,7 @@ export function useQuizApp() {
     if (!isJoined || !userName || !roomId) return;
     update(ref(db, `rooms/${roomId}/users/${userName}`), { isOnline: true });
     onDisconnect(ref(db, `rooms/${roomId}/users/${userName}/isOnline`)).set(false);
+    onDisconnect(ref(db, `rooms/${roomId}/lastActiveAt`)).set(Date.now());
     const goOnline = () => update(ref(db, `rooms/${roomId}/users/${userName}`), { isOnline: true });
     const handleVisibility = () => { if (document.visibilityState === "visible") goOnline(); };
     document.addEventListener("visibilitychange", handleVisibility);
