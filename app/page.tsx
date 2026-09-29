@@ -23,6 +23,7 @@ export default function Home() {
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [testUserCount, setTestUserCount] = useState(3);
+  const [showTestSection, setShowTestSection] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -284,32 +285,42 @@ export default function Home() {
                   {/* テスト用 - オーナーのみ */}
                   {isOwner && (
                   <div className="border-t pt-4">
-                    <p className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wide">PRE環境テスト用</p>
-                    <div className="flex items-center gap-2 mb-2">
-                      <label className="text-sm font-bold text-gray-600 shrink-0">人数</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={10}
-                        value={testUserCount}
-                        onChange={(e) => setTestUserCount(Number(e.target.value))}
-                        className="w-20 border-2 border-gray-300 rounded-lg p-1 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
-                      />
-                      <button
-                        onClick={() => addTestUsers(testUserCount)}
-                        disabled={appState.mode !== "registration"}
-                        className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-1.5 rounded-lg font-bold text-sm transition-colors"
-                      >
-                        テストユーザー追加
-                      </button>
-                    </div>
                     <button
-                      onClick={runTestAnswers}
-                      disabled={appState.mode !== "execution"}
-                      className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white py-1.5 rounded-lg font-bold text-sm transition-colors"
+                      onClick={() => setShowTestSection((v) => !v)}
+                      className="w-full flex items-center justify-between text-xs font-bold text-gray-400 uppercase tracking-wide mb-1"
                     >
-                      テスト回答を実行
+                      <span>PRE環境テスト用</span>
+                      <span>{showTestSection ? "▲" : "▼"}</span>
                     </button>
+                    {showTestSection && (
+                      <div className="mt-3 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-bold text-gray-600 shrink-0">人数</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={10}
+                            value={testUserCount}
+                            onChange={(e) => setTestUserCount(Number(e.target.value))}
+                            className="w-20 border-2 border-gray-300 rounded-lg p-1 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
+                          />
+                          <button
+                            onClick={() => addTestUsers(testUserCount)}
+                            disabled={appState.mode !== "registration"}
+                            className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-1.5 rounded-lg font-bold text-sm transition-colors"
+                          >
+                            テストユーザー追加
+                          </button>
+                        </div>
+                        <button
+                          onClick={runTestAnswers}
+                          disabled={appState.mode !== "execution"}
+                          className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white py-1.5 rounded-lg font-bold text-sm transition-colors"
+                        >
+                          テスト回答を実行
+                        </button>
+                      </div>
+                    )}
                   </div>
                   )}
 
