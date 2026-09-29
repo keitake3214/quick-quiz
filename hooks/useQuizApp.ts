@@ -92,6 +92,7 @@ export function useQuizApp() {
   const finalInitRef = useRef(false);
   const autoLoginProcessed = useRef(false);
   const creatingRoomRef = useRef(false);
+  const deletedRoomsRef = useRef<Set<string>>(new Set());
 
   // --- BGM ---
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -199,6 +200,7 @@ export function useQuizApp() {
   // --- isJoined確定後に確実にisOnline:trueを書き込む ---
   useEffect(() => {
     if (!isJoined || !userName || !roomId) return;
+    if (deletedRoomsRef.current.has(roomId)) return;
     update(ref(db, `rooms/${roomId}/users/${userName}`), { isOnline: true });
     onDisconnect(ref(db, `rooms/${roomId}/users/${userName}/isOnline`)).set(false);
     onDisconnect(ref(db, `rooms/${roomId}/lastActiveAt`)).set(Date.now());
@@ -589,6 +591,7 @@ export function useQuizApp() {
 
   const resetGameToRegistration = async () => {
     if (!roomId) return;
+    deletedRoomsRef.current.add(roomId);
     onDisconnect(ref(db, `rooms/${roomId}/users/${userName}/isOnline`)).cancel();
     onDisconnect(ref(db, `rooms/${roomId}/lastActiveAt`)).cancel();
     await remove(ref(db, `rooms/${roomId}`));
@@ -606,6 +609,7 @@ export function useQuizApp() {
   };
 
   const deleteRoom = async (targetRoomId: string) => {
+    deletedRoomsRef.current.add(targetRoomId);
     if (targetRoomId === roomId) {
       onDisconnect(ref(db, `rooms/${roomId}/users/${userName}/isOnline`)).cancel();
       onDisconnect(ref(db, `rooms/${roomId}/lastActiveAt`)).cancel();
@@ -624,6 +628,7 @@ export function useQuizApp() {
   };
 
   const deleteAllRooms = async () => {
+    activeRooms.forEach(({ id }) => deletedRoomsRef.current.add(id));
     await remove(ref(db, "rooms"));
     setIsJoined(false);
     setUserName("");
