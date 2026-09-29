@@ -589,6 +589,8 @@ export function useQuizApp() {
 
   const resetGameToRegistration = async () => {
     if (!roomId) return;
+    onDisconnect(ref(db, `rooms/${roomId}/users/${userName}/isOnline`)).cancel();
+    onDisconnect(ref(db, `rooms/${roomId}/lastActiveAt`)).cancel();
     await remove(ref(db, `rooms/${roomId}`));
     setIsJoined(false);
     setUserName("");
@@ -604,6 +606,10 @@ export function useQuizApp() {
   };
 
   const deleteRoom = async (targetRoomId: string) => {
+    if (targetRoomId === roomId) {
+      onDisconnect(ref(db, `rooms/${roomId}/users/${userName}/isOnline`)).cancel();
+      onDisconnect(ref(db, `rooms/${roomId}/lastActiveAt`)).cancel();
+    }
     await remove(ref(db, `rooms/${targetRoomId}`));
     if (targetRoomId === roomId) {
       setIsJoined(false);
