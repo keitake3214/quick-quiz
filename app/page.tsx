@@ -13,7 +13,7 @@ export default function Home() {
     countdownValue, showReadyScreen,
     sortedResults, resultPhase, resultRevealIndex, finalCountdown, finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
-    activeRooms, loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration, deleteRoom,
+    activeRooms, loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration, deleteRoom, deleteAllRooms,
     removeUser, addTestUsers, runTestAnswers, nextQuestion, showResults, submitAnswer
   } = useQuizApp();
 
@@ -23,6 +23,7 @@ export default function Home() {
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [testUserCount, setTestUserCount] = useState(3);
+  const [showTestSection, setShowTestSection] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -284,32 +285,42 @@ export default function Home() {
                   {/* テスト用 - オーナーのみ */}
                   {isOwner && (
                   <div className="border-t pt-4">
-                    <p className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wide">PRE環境テスト用</p>
-                    <div className="flex items-center gap-2 mb-2">
-                      <label className="text-sm font-bold text-gray-600 shrink-0">人数</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={10}
-                        value={testUserCount}
-                        onChange={(e) => setTestUserCount(Number(e.target.value))}
-                        className="w-20 border-2 border-gray-300 rounded-lg p-1 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
-                      />
-                      <button
-                        onClick={() => addTestUsers(testUserCount)}
-                        disabled={appState.mode !== "registration"}
-                        className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-1.5 rounded-lg font-bold text-sm transition-colors"
-                      >
-                        テストユーザー追加
-                      </button>
-                    </div>
                     <button
-                      onClick={runTestAnswers}
-                      disabled={appState.mode !== "execution"}
-                      className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white py-1.5 rounded-lg font-bold text-sm transition-colors"
+                      onClick={() => setShowTestSection((v) => !v)}
+                      className="w-full flex items-center justify-between text-xs font-bold text-gray-400 uppercase tracking-wide mb-1"
                     >
-                      テスト回答を実行
+                      <span>PRE環境テスト用</span>
+                      <span>{showTestSection ? "▲" : "▼"}</span>
                     </button>
+                    {showTestSection && (
+                      <div className="mt-3 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-bold text-gray-600 shrink-0">人数</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={10}
+                            value={testUserCount}
+                            onChange={(e) => setTestUserCount(Number(e.target.value))}
+                            className="w-20 border-2 border-gray-300 rounded-lg p-1 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
+                          />
+                          <button
+                            onClick={() => addTestUsers(testUserCount)}
+                            disabled={appState.mode !== "registration"}
+                            className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-1.5 rounded-lg font-bold text-sm transition-colors"
+                          >
+                            テストユーザー追加
+                          </button>
+                        </div>
+                        <button
+                          onClick={runTestAnswers}
+                          disabled={appState.mode !== "execution"}
+                          className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white py-1.5 rounded-lg font-bold text-sm transition-colors"
+                        >
+                          テスト回答を実行
+                        </button>
+                      </div>
+                    )}
                   </div>
                   )}
 
@@ -325,16 +336,25 @@ export default function Home() {
                 {/* 管理者のみ：アクティブルーム一覧 */}
                 {isOwner && activeRooms.length > 0 && (
                   <div className="mt-4 border-t pt-4">
-                    <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">アクティブルーム ({activeRooms.length})</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">アクティブルーム ({activeRooms.length})</p>
+                      <button
+                        onClick={() => { if (confirm(`全${activeRooms.length}部屋を解放しますか？`)) { deleteAllRooms(); setShowSettingsModal(false); } }}
+                        className="text-xs text-red-500 hover:text-red-700 font-bold px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
+                      >
+                        全部屋解放
+                      </button>
+                    </div>
                     <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
-                      {activeRooms.map((rid) => (
+                      {activeRooms.map(({ id: rid, userCount }) => (
                         <div key={rid} className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-sm font-mono ${
                           rid === roomId ? "bg-blue-50 border border-blue-300 text-blue-700 font-bold" : "bg-gray-50 text-gray-600"
                         }`}>
                           <span>{rid}{rid === roomId ? " ← 現在" : ""}</span>
+                          <span className="text-xs text-gray-400 mx-2">{userCount}人</span>
                           <button
                             onClick={() => deleteRoom(rid)}
-                            className="ml-2 text-xs text-red-500 hover:text-red-700 font-bold px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
+                            className="ml-auto text-xs text-red-500 hover:text-red-700 font-bold px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
                           >
                             解放
                           </button>
