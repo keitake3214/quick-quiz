@@ -91,6 +91,7 @@ export function useQuizApp() {
   const [sortedFinalResults, setSortedFinalResults] = useState<any[]>([]);
   const finalInitRef = useRef(false);
   const autoLoginProcessed = useRef(false);
+  const creatingRoomRef = useRef(false);
 
   // --- BGM ---
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -509,25 +510,30 @@ export function useQuizApp() {
   };
 
   const createRoom = async () => {
-    if (!lineProfile) return;
-    const newRoomId = generateRoomId();
-    const displayName = lineProfile.displayName;
-    await update(ref(db, `rooms/${newRoomId}/appState`), {
-      mode: "registration", timeLimit: 20, finalTransitionDelay: 5,
-      rankingDisplayTime: 5, currentQuestionId: null, questionStartTime: 0, askedQuestions: null,
-    });
-    await set(ref(db, `rooms/${newRoomId}/users/${displayName}`), {
-      score: 0, totalTimeTaken: 0, isOnline: true, isReady: false,
-      lineUserId: lineProfile.userId, displayName, pictureUrl: lineProfile.pictureUrl ?? "",
-    });
-    onDisconnect(ref(db, `rooms/${newRoomId}/users/${displayName}/isOnline`)).set(false);
-    localStorage.setItem("quick_quiz_user_name", displayName);
-    localStorage.setItem("quick_quiz_room_id", newRoomId);
-    localStorage.setItem("quick_quiz_is_host", "true");
-    setRoomId(newRoomId);
-    setIsRoomHost(true);
-    setUserName(displayName);
-    setIsJoined(true);
+    if (!lineProfile || creatingRoomRef.current) return;
+    creatingRoomRef.current = true;
+    try {
+      const newRoomId = generateRoomId();
+      const displayName = lineProfile.displayName;
+      await update(ref(db, `rooms/${newRoomId}/appState`), {
+        mode: "registration", timeLimit: 20, finalTransitionDelay: 5,
+        rankingDisplayTime: 5, currentQuestionId: null, questionStartTime: 0, askedQuestions: null,
+      });
+      await set(ref(db, `rooms/${newRoomId}/users/${displayName}`), {
+        score: 0, totalTimeTaken: 0, isOnline: true, isReady: false,
+        lineUserId: lineProfile.userId, displayName, pictureUrl: lineProfile.pictureUrl ?? "",
+      });
+      onDisconnect(ref(db, `rooms/${newRoomId}/users/${displayName}/isOnline`)).set(false);
+      localStorage.setItem("quick_quiz_user_name", displayName);
+      localStorage.setItem("quick_quiz_room_id", newRoomId);
+      localStorage.setItem("quick_quiz_is_host", "true");
+      setRoomId(newRoomId);
+      setIsRoomHost(true);
+      setUserName(displayName);
+      setIsJoined(true);
+    } finally {
+      creatingRoomRef.current = false;
+    }
   };
 
   const joinRoom = async (inputRoomId: string) => {
