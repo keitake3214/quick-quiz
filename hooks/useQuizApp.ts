@@ -1,7 +1,7 @@
 // hooks/useQuizApp.ts
 import { useState, useEffect, useRef } from "react";
 import { db, auth, signInAnonymously } from "../lib/firebase";
-import { ref, onValue, set, update, get, remove, onDisconnect, runTransaction } from "firebase/database";
+import { ref, onValue, set, update, get, remove, runTransaction } from "firebase/database";
 
 // --- 型定義 ---
 export type AppState = {
@@ -155,7 +155,6 @@ export function useQuizApp() {
             setUserName(savedName);
             setIsJoined(true);
             update(ref(db, `rooms/${savedRoom}/users/${savedName}`), { isOnline: true });
-            onDisconnect(ref(db, `rooms/${savedRoom}/users/${savedName}/isOnline`)).set(false);
           } else {
             localStorage.removeItem("quick_quiz_user_name");
             localStorage.removeItem("quick_quiz_room_id");
@@ -201,9 +200,10 @@ export function useQuizApp() {
   useEffect(() => {
     if (!isJoined || !userName || !roomId) return;
     if (deletedRoomsRef.current.has(roomId)) return;
-    update(ref(db, `rooms/${roomId}/users/${userName}`), { isOnline: true });
-    onDisconnect(ref(db, `rooms/${roomId}/users/${userName}/isOnline`)).set(false);
-    onDisconnect(ref(db, `rooms/${roomId}/lastActiveAt`)).set(Date.now());
+    get(ref(db, `rooms/${roomId}/appState`)).then((snap) => {
+      if (!snap.exists()) return;
+      update(ref(db, `rooms/${roomId}/users/${userName}`), { isOnline: true });
+    });
     const goOnline = async () => {
       const snap = await get(ref(db, `rooms/${roomId}/appState`));
       if (!snap.exists()) return;
@@ -525,7 +525,6 @@ export function useQuizApp() {
         score: 0, totalTimeTaken: 0, isOnline: true, isReady: false,
         lineUserId: lineProfile.userId, displayName, pictureUrl: lineProfile.pictureUrl ?? "",
       });
-      onDisconnect(ref(db, `rooms/${newRoomId}/users/${displayName}/isOnline`)).set(false);
       localStorage.setItem("quick_quiz_user_name", displayName);
       localStorage.setItem("quick_quiz_room_id", newRoomId);
       localStorage.setItem("quick_quiz_is_host", "true");
@@ -556,7 +555,6 @@ export function useQuizApp() {
       isOnline: true, isReady: false,
       lineUserId: lineProfile.userId, displayName, pictureUrl: lineProfile.pictureUrl ?? "",
     });
-    onDisconnect(ref(db, `rooms/${rid}/users/${displayName}/isOnline`)).set(false);
     localStorage.setItem("quick_quiz_user_name", displayName);
     localStorage.setItem("quick_quiz_room_id", rid);
     localStorage.setItem("quick_quiz_is_host", "false");
@@ -592,8 +590,6 @@ export function useQuizApp() {
   const resetGameToRegistration = async () => {
     if (!roomId) return;
     deletedRoomsRef.current.add(roomId);
-    onDisconnect(ref(db, `rooms/${roomId}/users/${userName}/isOnline`)).cancel();
-    onDisconnect(ref(db, `rooms/${roomId}/lastActiveAt`)).cancel();
     await remove(ref(db, `rooms/${roomId}`));
     setIsJoined(false);
     setUserName("");
@@ -610,10 +606,6 @@ export function useQuizApp() {
 
   const deleteRoom = async (targetRoomId: string) => {
     deletedRoomsRef.current.add(targetRoomId);
-    if (targetRoomId === roomId) {
-      onDisconnect(ref(db, `rooms/${roomId}/users/${userName}/isOnline`)).cancel();
-      onDisconnect(ref(db, `rooms/${roomId}/lastActiveAt`)).cancel();
-    }
     await remove(ref(db, `rooms/${targetRoomId}`));
     if (targetRoomId === roomId) {
       setIsJoined(false);
