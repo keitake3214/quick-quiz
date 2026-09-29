@@ -54,7 +54,7 @@ export function useQuizApp() {
   const [roomId, setRoomId] = useState<string | null>(null);
   const [isRoomHost, setIsRoomHost] = useState(false);
   const [roomInput, setRoomInput] = useState("");
-  const [activeRooms, setActiveRooms] = useState<string[]>([]);
+  const [activeRooms, setActiveRooms] = useState<{ id: string; userCount: number }[]>([]);
 
   const [appState, setAppState] = useState<AppState>({
     mode: "registration",
@@ -185,7 +185,12 @@ export function useQuizApp() {
     const ownerLineId = process.env.NEXT_PUBLIC_OWNER_LINE_ID;
     if (!lineProfile || !ownerLineId || lineProfile.userId !== ownerLineId) return;
     const unsubRooms = onValue(ref(db, "rooms"), (s) => {
-      setActiveRooms(s.exists() ? Object.keys(s.val()) : []);
+      if (!s.exists()) { setActiveRooms([]); return; }
+      const rooms = s.val() as Record<string, any>;
+      setActiveRooms(Object.entries(rooms).map(([id, data]) => ({
+        id,
+        userCount: data.users ? Object.keys(data.users).length : 0,
+      })));
     });
     return () => unsubRooms();
   }, [lineProfile]);
@@ -602,6 +607,18 @@ export function useQuizApp() {
     }
   };
 
+  const deleteAllRooms = async () => {
+    await remove(ref(db, "rooms"));
+    setIsJoined(false);
+    setUserName("");
+    setRoomId(null);
+    setIsRoomHost(false);
+    setMyQuestion({ text: "", choices: ["", "", "", ""], correctIndex: 0 });
+    localStorage.removeItem("quick_quiz_user_name");
+    localStorage.removeItem("quick_quiz_room_id");
+    localStorage.removeItem("quick_quiz_is_host");
+  };
+
   const removeUser = async (targetName: string) => {
     if (!roomId) return;
     await Promise.all([
@@ -729,7 +746,7 @@ export function useQuizApp() {
     sortedResults, resultPhase, resultRevealIndex, finalCountdown,
     finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
-    activeRooms, loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration, deleteRoom,
+    activeRooms, loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration, deleteRoom, deleteAllRooms,
     removeUser, addTestUsers, runTestAnswers, nextQuestion, showResults, submitAnswer,
   };
 }

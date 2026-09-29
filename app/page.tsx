@@ -13,7 +13,7 @@ export default function Home() {
     countdownValue, showReadyScreen,
     sortedResults, resultPhase, resultRevealIndex, finalCountdown, finalRevealIndex, sortedFinalResults,
     totalQuestions, askedCount, isLastQuestion,
-    activeRooms, loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration, deleteRoom,
+    activeRooms, loginWithLine, createRoom, joinRoom, join, toggleReady, saveQuestion, resetGameToRegistration, deleteRoom, deleteAllRooms,
     removeUser, addTestUsers, runTestAnswers, nextQuestion, showResults, submitAnswer
   } = useQuizApp();
 
@@ -325,16 +325,25 @@ export default function Home() {
                 {/* 管理者のみ：アクティブルーム一覧 */}
                 {isOwner && activeRooms.length > 0 && (
                   <div className="mt-4 border-t pt-4">
-                    <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">アクティブルーム ({activeRooms.length})</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">アクティブルーム ({activeRooms.length})</p>
+                      <button
+                        onClick={() => { if (confirm(`全${activeRooms.length}部屋を解放しますか？`)) { deleteAllRooms(); setShowSettingsModal(false); } }}
+                        className="text-xs text-red-500 hover:text-red-700 font-bold px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
+                      >
+                        全部屋解放
+                      </button>
+                    </div>
                     <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
-                      {activeRooms.map((rid) => (
+                      {activeRooms.map(({ id: rid, userCount }) => (
                         <div key={rid} className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-sm font-mono ${
                           rid === roomId ? "bg-blue-50 border border-blue-300 text-blue-700 font-bold" : "bg-gray-50 text-gray-600"
                         }`}>
                           <span>{rid}{rid === roomId ? " ← 現在" : ""}</span>
+                          <span className="text-xs text-gray-400 mx-2">{userCount}人</span>
                           <button
                             onClick={() => deleteRoom(rid)}
-                            className="ml-2 text-xs text-red-500 hover:text-red-700 font-bold px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
+                            className="ml-auto text-xs text-red-500 hover:text-red-700 font-bold px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
                           >
                             解放
                           </button>
