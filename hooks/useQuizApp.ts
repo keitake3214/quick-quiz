@@ -201,7 +201,11 @@ export function useQuizApp() {
     update(ref(db, `rooms/${roomId}/users/${userName}`), { isOnline: true });
     onDisconnect(ref(db, `rooms/${roomId}/users/${userName}/isOnline`)).set(false);
     onDisconnect(ref(db, `rooms/${roomId}/lastActiveAt`)).set(Date.now());
-    const goOnline = () => update(ref(db, `rooms/${roomId}/users/${userName}`), { isOnline: true });
+    const goOnline = async () => {
+      const snap = await get(ref(db, `rooms/${roomId}/appState`));
+      if (!snap.exists()) return;
+      update(ref(db, `rooms/${roomId}/users/${userName}`), { isOnline: true });
+    };
     const handleVisibility = () => { if (document.visibilityState === "visible") goOnline(); };
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("focus", goOnline);
