@@ -143,8 +143,11 @@ export function useQuizApp() {
       const savedRoom = localStorage.getItem("quick_quiz_room_id");
       const savedHost = localStorage.getItem("quick_quiz_is_host") === "true";
       if (savedName && savedRoom) {
-        get(ref(db, `rooms/${savedRoom}/users/${savedName}`)).then((snap) => {
-          if (snap.exists()) {
+        Promise.all([
+          get(ref(db, `rooms/${savedRoom}/users/${savedName}`)),
+          get(ref(db, `rooms/${savedRoom}/appState`)),
+        ]).then(([userSnap, stateSnap]) => {
+          if (userSnap.exists() && stateSnap.exists()) {
             setRoomId(savedRoom);
             setIsRoomHost(savedHost);
             setUserName(savedName);
